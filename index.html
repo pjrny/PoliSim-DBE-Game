@@ -7,23 +7,16 @@
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-   <header>
-    <h1>PoliSim-DBE: L&P Technocracy (Est. 2007)</h1>
-    [cite_start]<p>Advance your personal expertise to deploy the Dimensional Braid Engine and steer America towards a post-scarcity, post-conflict future. [cite: 341, 322]</p>
-    <div class="game-rules">
-        <p><strong>Win Conditions:</strong> Achieve President rank and Deploy all 5 DBE Subsystems by 2035. (Secondary Goal: Trillionaire Net Worth).</p>
-        <p><strong><a href="https://mylinks.patronjourney.com/blog/fusion-sim-71/braid-fusion-modular-quantum-forecasting-simulation-38" target="_blank">View DBE Architecture</a> | <a href="https://mylinks.patronjourney.com/blog/poly-sci-sim-70/simulating-americas-political-future-why-systemic-reform-is-needed-36" target="_blank">View L&P Policies/Sim</a></strong></p>
-    </div>
-</header>
+    <div id="game-over-screen" style="display:none;"></div>
 
-<section class="expertise">
-    <h2>DBE Subsystem Mastery: PHD Curriculum</h2>
-    <p>Current Rank: <span id="current-rank-display">Mayor</span>. Next Rank at: <span id="next-rank-xp"></span> XP.</p>
-    <div class="expertise-grid" id="expertise-status">
+    <header>
+        <h1>PoliSim-DBE: L&P Technocracy (Est. 2007)</h1>
+        <p>Advance your personal expertise to deploy the Dimensional Braid Engine and steer America towards a post-scarcity, post-conflict future.</p>
+        <div class="game-rules">
+            <p><strong>Win Conditions:</strong> Achieve President rank and Deploy all 5 DBE Subsystems by 2035. (Secondary Goal: Trillionaire Net Worth).</p>
+            <p><strong><a href="https://mylinks.patronjourney.com/blog/fusion-sim-71/braid-fusion-modular-quantum-forecasting-simulation-38" target="_blank">View DBE Architecture</a> | <a href="https://mylinks.patronjourney.com/blog/poly-sci-sim-70/simulating-americas-political-future-why-systemic-reform-is-needed-36" target="_blank">View L&P Policies/Sim</a></strong></p>
         </div>
-</section>
-<section class="quiz-area" id="quiz-area">
-    </section>
+    </header>
 
     <main>
         <section class="game-status">
@@ -40,25 +33,28 @@
         </section>
         
         <section class="expertise">
-            <h2>DBE Subsystem Mastery</h2>
-            <p>PHD Phases I-III Curriculum Progress:</p>
-            <ul id="expertise-status">
-                </ul>
+            <h2>DBE Subsystem Mastery: PHD Curriculum</h2>
+            <p>Current Rank: <span id="current-rank-display">Mayor</span>. Next Rank at: <span id="next-rank-xp"></span> Total XP.</p>
+            <div class="expertise-grid" id="expertise-status">
+                <!-- Progress bars and details loaded here by JS -->
+            </div>
         </section>
 
         <section class="quiz-area" id="quiz-area">
-            </section>
+            <!-- Quiz questions and answers will be loaded here -->
+        </section>
 
         <section class="deployment-area">
             <h2>DBE Deployment Status (Technocracy Vote)</h2>
-            <p>Deploy a subsystem once its required expertise level (XP) is reached. Higher Voting Weight increases success probability.</p>
+            <p>Deploy a subsystem once its required expertise level (XP: 5) is reached. Higher Voting Weight increases success probability.</p>
             <div id="dbe-deployment-area" class="deployment-buttons">
-                </div>
+                <!-- Deployment buttons will be added here by JS -->
+            </div>
         </section>
         
         <section class="economic-dashboard">
-            <h2>US Economic Dashboard (Simulated Baseline)</h2>
-            <p>Impact of L&P Policy + DBE Deployments on Historical Trends:</p>
+            <h2>US Economic Dashboard (Simulated L&P Impact)</h2>
+            <p>Change from Historical Baseline (Pre-DBE, Pre-L&P):</p>
             <div class="dashboard-grid">
                 <div class="metric metric-debt">
                     <strong>Debt-to-GDP Ratio:</strong> 
