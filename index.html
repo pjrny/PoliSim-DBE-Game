@@ -1,1 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PoliSim-DBE: A Quantum-Political Game</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <header>
+        <h1>PoliSim-DBE: L&P Technocracy (Est. 2007)</h1>
+        <p>Advance your personal expertise to deploy the Dimensional Braid Engine and steer America towards a post-scarcity, post-conflict future.</p>
+    </header>
 
+    <main>
+        <section class="game-status">
+            <h2>Your Current Status</h2>
+            <div class="status-grid">
+                <div><strong>Year:</strong> <span id="current-year">2007</span> / 2035</div>
+                <div><strong>Political Rank:</strong> <span id="political-level">Mayor</span></div>
+                <div><strong>Net Worth:</strong> <span id="net-worth">$10000.00</span></div>
+                <div><strong>Total XP:</strong> <span id="total-xp">0</span></div>
+                <div><strong>Voting Weight:</strong> <span id="voting-weight">0.00</span></div>
+            </div>
+            <button id="advance-time-button">Advance Time (1 Year)</button>
+            <button id="reset-game-button">Reset Game</button>
+        </section>
+        
+        <section class="expertise">
+            <h2>DBE Subsystem Mastery</h2>
+            <p>PHD Phases I-III Curriculum Progress:</p>
+            <ul id="expertise-status">
+                </ul>
+        </section>
+
+        <section class="quiz-area" id="quiz-area">
+            </section>
+
+        <section class="deployment-area">
+            <h2>DBE Deployment Status (Technocracy Vote)</h2>
+            <p>Deploy a subsystem once its required expertise level (XP) is reached. Higher Voting Weight increases success probability.</p>
+            <div id="dbe-deployment-area" class="deployment-buttons">
+                </div>
+        </section>
+        
+        <section class="economic-dashboard">
+            <h2>US Economic Dashboard (Simulated Baseline)</h2>
+            <p>Impact of L&P Policy + DBE Deployments on Historical Trends:</p>
+            <div class="dashboard-grid">
+                <div class="metric metric-debt">
+                    <strong>Debt-to-GDP Ratio:</strong> 
+                    <span id="debt-gdp-current">65.00%</span>
+                </div>
+                <div class="metric metric-gdp">
+                    <strong>Annual Real GDP Growth:</strong> 
+                    <span id="gdp-growth-current">2.00%</span>
+                </div>
+                <div class="metric metric-homeless">
+                    <strong>Homelessness Population (k):</strong> 
+                    <span id="homelessness-current">650.00k</span>
+                </div>
+                <div class="metric metric-defense">
+                    <strong>Defense Spending (% GDP):</strong> 
+                    <span id="defense-spending-current">4.00%</span>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer>
+        <p>DBE Architecture & Fusion-Consciousness Duality is a framework for creative exploration, not real-world prediction.</p>
+    </footer>
+
+    <script type="module" src="js/db_data.js"></script>
+    <script type="module" src="js/game_logic.js"></script>
+</body>
+</html>
