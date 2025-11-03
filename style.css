@@ -8,47 +8,7 @@
     --color-failure: #D32F2F; /* Red */
     --color-neutral: #FFC107; /* Amber */
 }
-/* Additional CSS for better UX/UI (Add to style.css) */
 
-.game-rules {
-    background-color: #5d3f90; /* Slightly lighter purple */
-    padding: 0.8rem;
-    margin-top: 10px;
-    border-radius: 4px;
-    font-size: 0.85rem;
-}
-.game-rules a {
-    color: #ffc107;
-    font-weight: bold;
-}
-.expertise-grid {
-    display: flex;
-    flex-direction: column;
-    gap: 15px;
-}
-.expertise-item {
-    background-color: #f0f0f5;
-    padding: 10px;
-    border-radius: 6px;
-    border-left: 5px solid var(--color-secondary);
-}
-.expertise-title {
-    display: flex;
-    justify-content: space-between;
-    font-weight: bold;
-    margin-bottom: 5px;
-}
-.progress-bar-container {
-    background-color: #ddd;
-    border-radius: 4px;
-    overflow: hidden;
-    height: 12px;
-}
-.progress-bar {
-    height: 100%;
-    background-color: var(--color-success);
-    transition: width 0.3s ease-in-out;
-}
 body {
     font-family: 'Arial', sans-serif;
     margin: 0;
@@ -93,6 +53,21 @@ h2 {
     font-size: 1.25rem;
 }
 
+/* --- Game Rules / Links --- */
+.game-rules {
+    background-color: #5d3f90; /* Slightly lighter purple */
+    padding: 0.8rem;
+    margin-top: 10px;
+    border-radius: 4px;
+    font-size: 0.85rem;
+    text-align: left;
+}
+.game-rules a {
+    color: var(--color-neutral);
+    font-weight: bold;
+    text-decoration: underline;
+}
+
 /* --- Status and Grid Layouts --- */
 .status-grid, .dashboard-grid {
     display: grid;
@@ -105,18 +80,37 @@ h2 {
     color: var(--color-primary);
 }
 
-.expertise ul {
-    list-style: none;
-    padding: 0;
+/* --- Expertise Section --- */
+.expertise-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+.expertise-item {
+    background-color: #f0f0f5;
+    padding: 10px;
+    border-radius: 6px;
+    border-left: 5px solid var(--color-secondary);
+}
+.expertise-title {
+    display: flex;
+    justify-content: space-between;
+    font-weight: bold;
+    margin-bottom: 5px;
+    font-size: 0.95rem;
+}
+.progress-bar-container {
+    background-color: #ddd;
+    border-radius: 4px;
+    overflow: hidden;
+    height: 12px;
+}
+.progress-bar {
+    height: 100%;
+    background-color: var(--color-secondary);
+    transition: width 0.3s ease-in-out;
 }
 
-.expertise li {
-    background-color: #f0f0f5;
-    padding: 0.5rem;
-    margin-bottom: 0.3rem;
-    border-left: 5px solid var(--color-secondary);
-    border-radius: 4px;
-}
 
 /* --- Buttons --- */
 button {
@@ -158,7 +152,7 @@ button:disabled {
 }
 
 /* --- Feedback --- */
-#quiz-feedback {
+#quiz-feedback, #quiz-hint {
     padding: 10px;
     border-radius: 5px;
     margin-top: 10px;
@@ -171,10 +165,16 @@ button:disabled {
     border: 1px solid var(--color-success);
 }
 
-.feedback-incorrect {
+.feedback-incorrect, .feedback-failure {
     background-color: #FFEBEE;
     color: var(--color-failure);
     border: 1px solid var(--color-failure);
+}
+
+.hint-visible {
+    background-color: #fffde7;
+    color: var(--color-neutral);
+    border: 1px solid var(--color-neutral);
 }
 
 .feedback-neutral {
@@ -199,4 +199,31 @@ footer {
     padding: 1rem;
     font-size: 0.75rem;
     color: #666;
+}
+
+/* --- Game Over --- */
+#game-over-screen {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.9);
+    color: white;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-direction: column;
+    text-align: center;
+    z-index: 1000;
+}
+#game-over-screen h2 {
+    color: var(--color-neutral);
+    border-bottom: 2px solid var(--color-neutral);
+    font-size: 2rem;
+}
+#game-over-screen button {
+    background-color: var(--color-neutral);
+    color: var(--color-text);
+    margin-top: 20px;
 }
