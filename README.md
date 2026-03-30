@@ -1,8 +1,116 @@
 # PoliSim-DBE-Game
-📖 README.md: PoliSim-DBE⚛️ PoliSim-DBE: Quantum-Political Strategy GameThe PoliSim-DBE (Political Simulation - Dimensional Braid Engine) is an interactive web game that fuses real-world economic and political challenges (starting from the US 2006 context) with cutting-edge theoretical physics. You play as a member of the Liberty & Progress Party 1 whose goal is to use accumulated scientific expertise—specifically in the principles of the theoretical Dimensional Braid Engine (DBE)—to gain political influence, enact systemic reforms, and guide humanity toward a post-scarcity future powered by fusion energy.🪶 For Players: Your Mission & MechanicsYour mission is two-fold: achieve the highest political office while pioneering the greatest scientific breakthrough.1. The Starting Line: 2007 & The L&P PlatformYou begin in January 2007 as a nascent political figure (Mayor) in the newly active Liberty & Progress Party (L&P). The L&P platform is unconventional, blending libertarian and progressive ideas 2aimed at maximizing personal liberty and embracing social progress3.Your party’s vision is to fix structural issues like rising debt and social crises 4444 by implementing radical policies like:Replacing the income tax with a national VAT (Value-Added Tax)5.Reallocating Military Spending towards R&D, education, and healthcare6.Tackling homelessness through Housing First approaches and affordability policies7777.2. The Core Mechanic: Study, Gain Influence, Vote (S.I.V.)The game loop centers on converting scientific knowledge into political capital:StepActionOutcomeStudy (Quiz)Answer PHD Curriculum Quizzes (based on DBE and advanced physics)[cite: 2, 3, 4].Gain Expertise Points (XP) in a specific scientific field (e.g., Fracton Memory). Each correct answer also grants Wealth (as investment capital) toward the Trillionaire goal.Gain InfluenceAccumulate Total XP to increase your Political Rank (Mayor $\to$ Governor $\to$ President).Your Total Voting Weight is calculated based on your Political Level Score, Expertise Multiplier, and Wealth Factor.Vote (Deploy)Once a scientific field reaches the Deployment Gate (5 XP), you can initiate a Vote to deploy the corresponding DBE Subsystem (e.g., Fracton Memory System).Deployment success is probabilistic and dependent on your Total Voting Weight. Success permanently modifies the US Economic Dashboard (e.g., accelerating debt reduction or increasing GDP growth)[cite: 3].3. The Dual Victory ConditionYou win the game by achieving both the political and the financial/scientific pinnacle by 2035:Political/Scientific Victory: Achieve the rank of President and successfully deploy all five DBE Subsystems.Secondary Goal (The Trillionaire): Achieve a Net Worth of over $1 Trillion.4. 📚 Deep Dive: The DBE Science (The Curriculum)The scientific framework behind the game is based on the theoretical Dimensional Braid Engine (DBE), a modular quantum-topological processor designed to stabilize fusion plasma8.DBE SubsystemCore Scientific PrincipleGame ImpactTopological Q-ComputingMajorana Braids, Braid Group Algebra [cite: 91]Boosts Innovation/GDP Growth.Fracton MemoryFracton Topological Codes [cite: 124]Improves Fiscal Health (Debt Reduction).Time Crystal SyncFloquet Time Crystals [cite: 163]Stabilizes Social Systems (Reduces Homelessness).Fusion/MHD ControlPlasma Physics, Real-Time Feedback [cite: 206]Enables Military Spending Reallocation to R&D.Holographic EncodingAdS/CFT Tensor Networks [cite: 264]Increases Economic Productivity and growth.🛠️ For Developers: Customization & ArchitectureThis section is for contributors who want to modify the game logic, introduce new scenarios, or deepen the mathematical models.1. Codebase StructureThe game runs entirely client-side using vanilla JavaScript for lightweight, mobile-first performance on GitHub Pages:/PoliSim-DBE-Game/
-├── index.html          # HTML structure (The View)
-├── style.css           # Styling (The Aesthetic)
-└── js/
-    ├── db_data.js      # The Model: All configuration constants and data
-    └── game_logic.js   # The Controller: All core functions and game rules
-2. Primary Customization PointsThe entire game is driven by variables in js/db_data.js. No changes are typically needed in game_logic.js unless modifying core progression rules (e.g., the Voting Weight formula).File/ConstantDescription & Customizationjs/db_data.jsTHE CONFIGURATION FILEINITIAL_STATEAdjust starting parameters: currentYear, netWorth, and initial expertise levels.DBE_CONSTANTSProgression Logic: Modify VOTE_GATE (XP needed to vote), XP_PER_ANSWER, and the thresholds (min_xp) and score for POLITICAL_RANKS.ECONOMIC_MODELSimulation Tuning: Adjust historical_drift on metrics to change the baseline scenario (e.g., make debt rise faster/slower). Modify dbe_impact multipliers to change how DBE deployments affect the economy.QUIZ_BANKCurriculum Content: Add new questions. Ensure each question includes: [Question, Correct_Answer, [Wrong_Answers], 'associated_field']. The associated_field must match a key in INITIAL_STATE.expertise.3. Source Material & Further ReadingThe theoretical background for this simulation is based on two primary frameworks:The Dimensional Braid Engine (DBE) Architecture & Curriculum: The science, physics, topology, and advanced mathematics that form the game's curriculum and deployment goals.Full Details: Braiding the Fusion Future: Modular Quantum Forecasting Simulationhttps://mylinks.patronjourney.com/blog/fusion-sim-71/braid-fusion-modular-quantum-forecasting-simulation-38The Political-Economic Simulation (PoliSim) & L&P Platform: The historical context, economic challenges, policy proposals, and the vision for systemic reform.Full Details: Simulating America's Political Future: Why Systemic Reform Is Neededhttps://mylinks.patronjourney.com/blog/poly-sci-sim-70/simulating-americas-political-future-why-systemic-reform-is-needed-36
+
+PoliSim-DBE is a browser-based political strategy + macro scenario simulator.
+This version now includes a **manifesto-driven policy input board** tailored to your listed “10% chaos” US-party ideas, plus a practical secrets workflow for local and GitHub Pages deployments.
+
+## What changed in this version
+
+- Added a **policy slider board** for manifesto levers (VAT, military reallocation, vice legalization, church taxation, immigration openness, apprenticeship shift, etc.).
+- Added **extra tracked metrics**: Trust Index, Civil Liberty Index, Cyber Capacity.
+- Added **environment setup flow** for `OPENBB_API_KEY` and `SECURE_CODE` validation.
+- Added runtime config placeholders (`RUNTIME_CONFIG`) and documentation for secure deployment.
+
+---
+
+## Quick start (local)
+
+1. Clone repo.
+2. Open `index.html` in a local server (recommended):
+   - `python3 -m http.server 8080`
+   - visit `http://localhost:8080`
+3. Tune manifesto policy sliders.
+4. Use **Validate Keys** after entering:
+   - OpenBB API key
+   - Secure code (your private admin code)
+
+---
+
+## Required variables (and where to get them)
+
+### 1) `OPENBB_API_KEY`
+- **What it is:** API key for OpenBB data access.
+- **Where to get it:** from your OpenBB account dashboard.
+- **Use in app:** set in runtime config and/or environment setup panel.
+
+### 2) `SECURE_CODE`
+- **What it is:** private passphrase only you/admins know.
+- **Where to get it:** you define it yourself.
+- **How app verifies:** hash this code with SHA-256 and store hash as `SECURE_CODE_HASH`.
+
+### 3) `SECURE_CODE_HASH`
+- **What it is:** SHA-256 hex digest of `SECURE_CODE`.
+- **Generate locally:**
+  ```bash
+  echo -n "your-secure-code" | sha256sum
+  ```
+  (Use the first hex column.)
+
+---
+
+## Configure secrets for GitHub Pages
+
+Because this is a static app, do **not** commit real secrets to git.
+Use GitHub Actions + repository secrets:
+
+1. In GitHub repo:
+   - Settings → Secrets and variables → Actions.
+2. Add secrets:
+   - `OPENBB_API_KEY`
+   - `SECURE_CODE_HASH`
+3. In your deploy workflow, create a generated config file at build time (example):
+
+```yaml
+- name: Generate runtime config
+  run: |
+    cat > js/runtime_config.generated.js <<'CONF'
+    export const GENERATED_RUNTIME_CONFIG = {
+      OPENBB_API_KEY: "${{ secrets.OPENBB_API_KEY }}",
+      SECURE_CODE_HASH: "${{ secrets.SECURE_CODE_HASH }}"
+    };
+    CONF
+```
+
+4. Import and merge this generated object in `db_data.js` (or switch `RUNTIME_CONFIG` to load from it).
+
+---
+
+## Policy mapping for your manifesto
+
+Current policy levers are modeled as scenario intensities (0–100):
+
+- VAT replacement
+- Military reallocation to cyber/health/science
+- Vice legalization/taxation
+- Church/non-profit taxation
+- Owner-occupancy housing push
+- Direct democracy with policy gating
+- Technocracy branch pressure
+- Immigration openness + enforcement
+- Welfare cash-equivalent shift
+- Apprenticeship-first education path
+- Year-round schooling
+- Civil-liberty safeguard floor
+- Chaos factor
+
+These values apply drift multipliers yearly in the simulation engine.
+
+---
+
+## Roadmap to full implementation
+
+1. **Data-backed calibration**
+   - Replace placeholder multipliers in `POLICY_IMPACTS` with dataset-derived elasticities.
+2. **OpenBB integration**
+   - Pull real macro time series and use them for historical fit mode.
+3. **Scenario presets**
+   - Save/load policy bundles (e.g., “10% chaos baseline”, “hard-authoritarian”, “balanced technocrat”).
+4. **Governance mechanics**
+   - Add consequences for civil-liberty breaches and legitimacy shocks.
+5. **Cloud saves**
+   - Persist runs with optional backend token instead of localStorage only.
+
+---
+
+## Disclaimer
+
+This simulator is a creative policy sandbox and not legal, financial, or political advice. It should not be used for real-world decision-making without rigorous external validation.

@@ -1,6 +1,6 @@
 // js/game_logic.js - The PoliSim-DBE Core Engine
 
-import { INITIAL_STATE, DBE_CONSTANTS, ECONOMIC_MODEL, QUIZ_BANK } from './db_data.js';
+import { INITIAL_STATE, DBE_CONSTANTS, ECONOMIC_MODEL, POLICY_IMPACTS, QUIZ_BANK, RUNTIME_CONFIG } from './db_data.js';
 
 // --- Global State and Initialization ---
 let gameState = {};
@@ -10,12 +10,24 @@ const LOCAL_STORAGE_KEY = 'poliSimDbeGame';
 let currentQuestion = null;
 let currentAttempts = 0;
 
+
+async function sha256(text) {
+    const bytes = new TextEncoder().encode(text);
+    const digest = await crypto.subtle.digest('SHA-256', bytes);
+    return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, '0')).join('');
+}
+
+function getPolicyIntensity(value) {
+    return Math.max(0, Math.min(1, Number(value || 0) / 100));
+}
+
 document.addEventListener('DOMContentLoaded', initGame);
 
 function initGame() {
     loadGame();
     setupEventListeners();
     updateUI();
+    renderPolicyBoard();
     showQuizArea();
 }
 
@@ -24,12 +36,11 @@ function loadGame() {
     const savedState = localStorage.getItem(LOCAL_STORAGE_KEY);
     if (savedState) {
         gameState = JSON.parse(savedState);
-        // Ensure new properties are initialized on load from old save
-        if (!gameState.quiz_history) {
-            gameState.quiz_history = [];
-        }
+        if (!gameState.quiz_history) gameState.quiz_history = [];
+        if (!gameState.policy_platform) gameState.policy_platform = structuredClone(INITIAL_STATE.policy_platform);
     } else {
-        gameState = INITIAL_STATE;
+        gameState = structuredClone(INITIAL_STATE);
+        gameState.quiz_history = [];
     }
 }
 
@@ -82,26 +93,28 @@ function runEconomicSimulation() {
     const model = ECONOMIC_MODEL;
     const state = gameState;
     const impact = model.dbe_impact;
-    
+
     for (const metricKey in model.metrics) {
-        let metric = model.metrics[metricKey];
-        let drift = metric.historical_drift; // Start with historical trend
-        
+        const metric = model.metrics[metricKey];
+        let drift = metric.historical_drift;
+
         // Apply permanent DBE deployment impacts as compounding annual multipliers
         for (const dbeKey in state.dbe_deployment) {
-            if (state.dbe_deployment[dbeKey] && impact[dbeKey.replace('_deployed', '')]) {
-                 const key = dbeKey.replace('_deployed', '');
-                // Check if the deployment impact has a specific effect on this metric
-                if (impact[key][metricKey]) {
-                    drift *= impact[key][metricKey];
-                }
+            if (state.dbe_deployment[dbeKey] && impact[dbeKey] && impact[dbeKey][metricKey]) {
+                drift *= impact[dbeKey][metricKey];
             }
         }
 
-        // Apply final drift (historical + DBE impact)
-        metric.current *= drift;
+        // Apply party-platform effects from the user-defined manifesto levers.
+        for (const policyKey in state.policy_platform) {
+            if (!POLICY_IMPACTS[policyKey] || !POLICY_IMPACTS[policyKey][metricKey]) continue;
+            const baseImpact = POLICY_IMPACTS[policyKey][metricKey];
+            const intensity = getPolicyIntensity(state.policy_platform[policyKey]);
+            const chaosModifier = 1 + (state.policy_platform.chaos_factor || 0) * 0.05;
+            drift *= 1 + ((baseImpact - 1) * intensity * chaosModifier);
+        }
 
-        // Ensure current value is updated
+        metric.current *= drift;
         model.metrics[metricKey].current = metric.current;
     }
 }
@@ -178,6 +191,9 @@ function updateUI() {
     document.getElementById('gdp-growth-current').textContent = `${econMetrics.gdp_growth.current.toFixed(2)}${econMetrics.gdp_growth.unit}`;
     document.getElementById('homelessness-current').textContent = `${econMetrics.homelessness_k.current.toFixed(2)}${econMetrics.homelessness_k.unit}`;
     document.getElementById('defense-spending-current').textContent = `${econMetrics.defense_spending_gdp.current.toFixed(2)}${econMetrics.defense_spending_gdp.unit}`;
+    document.getElementById('trust-index-current').textContent = `${econMetrics.trust_index.current.toFixed(2)}${econMetrics.trust_index.unit}`;
+    document.getElementById('civil-liberties-current').textContent = `${econMetrics.civil_liberty_index.current.toFixed(2)}${econMetrics.civil_liberty_index.unit}`;
+    document.getElementById('cyber-capacity-current').textContent = `${econMetrics.cyber_capacity.current.toFixed(2)}${econMetrics.cyber_capacity.unit}`;
 }
 
 
@@ -354,6 +370,7 @@ function advanceTime() {
 
     // 6. Update UI and Save
     updateUI();
+    renderPolicyBoard();
     showQuizArea();
     saveGame();
 }
@@ -388,6 +405,86 @@ function checkGameEnd() {
         return true;
     }
     return false;
+}
+
+
+
+function renderPolicyBoard() {
+    const board = document.getElementById('policy-input-board');
+    if (!board || !gameState.policy_platform) return;
+
+    const labels = {
+        chaos_factor: 'Chaos Factor (%)',
+        vat_rate: 'VAT Shift',
+        military_reallocation: 'Military → Cyber/Health/Science',
+        vice_legalization: 'Legalize/Regulate Vice Markets',
+        church_taxation: 'Church/Nonprofit Taxation',
+        owner_occupancy_push: 'Owner-Occupancy Housing Push',
+        direct_democracy: 'Direct Voting + Policy Quiz',
+        technocracy_branch: '4th Technocracy Branch',
+        immigration_openness: 'Open Immigration + Fast Deportation',
+        welfare_cash_shift: 'Cash-Equivalent Welfare',
+        apprenticeship_shift: 'Apprenticeship over Degree',
+        year_round_schooling: 'Year-Round Schooling',
+        civil_liberties_floor: 'Civil Liberties Safeguard'
+    };
+
+    board.innerHTML = '';
+    for (const key of Object.keys(gameState.policy_platform)) {
+        const value = gameState.policy_platform[key];
+        const wrap = document.createElement('label');
+        wrap.className = 'policy-control';
+        wrap.innerHTML = `
+            <span>${labels[key] || key}</span>
+            <input type="range" min="0" max="100" step="5" value="${Math.round(value * (key === 'chaos_factor' ? 100 : 1))}" data-policy-key="${key}" />
+            <strong id="policy-value-${key}">${Math.round(value * (key === 'chaos_factor' ? 100 : 1))}%</strong>
+        `;
+        board.appendChild(wrap);
+    }
+
+    board.querySelectorAll('input[data-policy-key]').forEach((input) => {
+        input.addEventListener('input', (e) => {
+            const key = e.target.dataset.policyKey;
+            const raw = Number(e.target.value);
+            gameState.policy_platform[key] = key === 'chaos_factor' ? raw / 100 : raw;
+            const v = document.getElementById(`policy-value-${key}`);
+            if (v) v.textContent = `${raw}%`;
+            saveGame();
+        });
+    });
+}
+
+async function setupEnvironmentPanel() {
+    const saveBtn = document.getElementById('save-env-button');
+    if (!saveBtn) return;
+
+    const status = document.getElementById('env-status');
+    const local = JSON.parse(localStorage.getItem('poliSimEnvConfig') || '{}');
+    if (local.OPENBB_API_KEY) {
+        document.getElementById('openbb-api-key').value = local.OPENBB_API_KEY;
+    }
+
+    saveBtn.addEventListener('click', async () => {
+        const openbb = document.getElementById('openbb-api-key').value.trim();
+        const secureCode = document.getElementById('secure-code').value.trim();
+        const secureHash = await sha256(secureCode);
+        const expectedHash = local.SECURE_CODE_HASH || RUNTIME_CONFIG.SECURE_CODE_HASH || secureHash;
+        const expectedApi = RUNTIME_CONFIG.OPENBB_API_KEY || local.OPENBB_API_KEY || openbb;
+
+        const unlocked = !!openbb && !!secureCode && secureHash === expectedHash && openbb === expectedApi;
+        if (unlocked) {
+            status.textContent = 'Unlocked: historical calibration and admin controls are enabled.';
+            status.className = 'feedback-correct';
+        } else {
+            status.textContent = 'Locked: check OPENBB_API_KEY and SECURE_CODE.';
+            status.className = 'feedback-incorrect';
+        }
+
+        localStorage.setItem('poliSimEnvConfig', JSON.stringify({
+            OPENBB_API_KEY: openbb,
+            SECURE_CODE_HASH: expectedHash
+        }));
+    });
 }
 
 // --- 7. Event Listeners and Setup ---
