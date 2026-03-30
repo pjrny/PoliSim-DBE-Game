@@ -227,3 +227,46 @@ footer {
     color: var(--color-text);
     margin-top: 20px;
 }
+
+/* --- Policy and Environment Panels --- */
+.policy-grid {
+    display: grid;
+    gap: 12px;
+}
+
+.policy-control {
+    display: grid;
+    grid-template-columns: 1.3fr 2fr auto;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.9rem;
+}
+
+.policy-control input[type="range"] {
+    width: 100%;
+}
+
+.env-grid {
+    display: grid;
+    gap: 10px;
+    margin-bottom: 8px;
+}
+
+.env-grid label {
+    display: grid;
+    gap: 4px;
+    font-weight: 600;
+}
+
+.env-grid input {
+    padding: 8px;
+    border-radius: 4px;
+    border: 1px solid #cfd8dc;
+}
+
+.feedback-neutral {
+    display: block;
+    color: #555;
+    border: 1px dashed #bbb;
+    background: #fafafa;
+}

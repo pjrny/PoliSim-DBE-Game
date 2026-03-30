@@ -11,9 +11,9 @@
 
     <header>
         <h1>PoliSim-DBE: L&P Technocracy (Est. 2007)</h1>
-        <p>Advance your personal expertise to deploy the Dimensional Braid Engine and steer America towards a post-scarcity, post-conflict future.</p>
+        <p>Advance your expertise, tune your custom policy manifesto, and simulate long-term US outcomes under a high-risk political platform.</p>
         <div class="game-rules">
-            <p><strong>Win Conditions:</strong> Achieve President rank and Deploy all 5 DBE Subsystems by 2035. (Secondary Goal: Trillionaire Net Worth).</p>
+            <p><strong>Win Conditions:</strong> Achieve President rank and deploy all 5 DBE subsystems by 2035 (secondary goal: Trillionaire Net Worth).</p>
             <p><strong><a href="https://mylinks.patronjourney.com/blog/fusion-sim-71/braid-fusion-modular-quantum-forecasting-simulation-38" target="_blank">View DBE Architecture</a> | <a href="https://mylinks.patronjourney.com/blog/poly-sci-sim-70/simulating-americas-political-future-why-systemic-reform-is-needed-36" target="_blank">View L&P Policies/Sim</a></strong></p>
         </div>
     </header>
@@ -31,53 +31,55 @@
             <button id="advance-time-button">Advance Time (1 Year)</button>
             <button id="reset-game-button">Reset Game</button>
         </section>
-        
+
+        <section class="policy-board">
+            <h2>Party Platform Input Board (Manifesto Scenario)</h2>
+            <p>Set policy intensity from 0-100%. These values drive annual macro drift in the simulator.</p>
+            <div id="policy-input-board" class="policy-grid"></div>
+        </section>
+
+        <section class="environment-setup">
+            <h2>Environment Setup (Secrets)</h2>
+            <p>Use your OpenBB API key and private secure code to unlock advanced calibration. For GitHub Pages, configure these using GitHub Actions Secrets.</p>
+            <div class="env-grid">
+                <label>OpenBB API Key <input id="openbb-api-key" type="password" placeholder="obb_..." /></label>
+                <label>Secure Code <input id="secure-code" type="password" placeholder="your private code" /></label>
+            </div>
+            <button id="save-env-button">Validate Keys</button>
+            <p id="env-status" class="feedback-neutral">Locked until valid OPENBB_API_KEY + SECURE_CODE are provided.</p>
+        </section>
+
         <section class="expertise">
             <h2>DBE Subsystem Mastery: PHD Curriculum</h2>
             <p>Current Rank: <span id="current-rank-display">Mayor</span>. Next Rank at: <span id="next-rank-xp"></span> Total XP.</p>
-            <div class="expertise-grid" id="expertise-status">
-                <!-- Progress bars and details loaded here by JS -->
-            </div>
+            <div class="expertise-grid" id="expertise-status"></div>
         </section>
 
-        <section class="quiz-area" id="quiz-area">
-            <!-- Quiz questions and answers will be loaded here -->
-        </section>
+        <section class="quiz-area" id="quiz-area"></section>
 
         <section class="deployment-area">
             <h2>DBE Deployment Status (Technocracy Vote)</h2>
-            <p>Deploy a subsystem once its required expertise level (XP: 5) is reached. Higher Voting Weight increases success probability.</p>
-            <div id="dbe-deployment-area" class="deployment-buttons">
-                <!-- Deployment buttons will be added here by JS -->
-            </div>
+            <p>Deploy a subsystem once its required expertise level (XP: 5) is reached. Higher voting weight increases success probability.</p>
+            <div id="dbe-deployment-area" class="deployment-buttons"></div>
         </section>
-        
+
         <section class="economic-dashboard">
-            <h2>US Economic Dashboard (Simulated L&P Impact)</h2>
-            <p>Change from Historical Baseline (Pre-DBE, Pre-L&P):</p>
+            <h2>US Economic Dashboard (Simulated Impact)</h2>
+            <p>Change from historical baseline (pre-DBE, pre-platform deployment):</p>
             <div class="dashboard-grid">
-                <div class="metric metric-debt">
-                    <strong>Debt-to-GDP Ratio:</strong> 
-                    <span id="debt-gdp-current">65.00%</span>
-                </div>
-                <div class="metric metric-gdp">
-                    <strong>Annual Real GDP Growth:</strong> 
-                    <span id="gdp-growth-current">2.00%</span>
-                </div>
-                <div class="metric metric-homeless">
-                    <strong>Homelessness Population (k):</strong> 
-                    <span id="homelessness-current">650.00k</span>
-                </div>
-                <div class="metric metric-defense">
-                    <strong>Defense Spending (% GDP):</strong> 
-                    <span id="defense-spending-current">4.00%</span>
-                </div>
+                <div class="metric metric-debt"><strong>Debt-to-GDP Ratio:</strong> <span id="debt-gdp-current">65.00%</span></div>
+                <div class="metric metric-gdp"><strong>Annual Real GDP Growth:</strong> <span id="gdp-growth-current">2.00%</span></div>
+                <div class="metric metric-homeless"><strong>Homelessness Population (k):</strong> <span id="homelessness-current">650.00k</span></div>
+                <div class="metric metric-defense"><strong>Defense Spending (% GDP):</strong> <span id="defense-spending-current">4.00%</span></div>
+                <div class="metric metric-trust"><strong>Trust Index:</strong> <span id="trust-index-current">50.00/100</span></div>
+                <div class="metric metric-liberty"><strong>Civil Liberty Index:</strong> <span id="civil-liberties-current">70.00/100</span></div>
+                <div class="metric metric-cyber"><strong>Cyber Capacity:</strong> <span id="cyber-capacity-current">45.00/100</span></div>
             </div>
         </section>
     </main>
 
     <footer>
-        <p>DBE Architecture & Fusion-Consciousness Duality is a framework for creative exploration, not real-world prediction.</p>
+        <p>This simulator is for scenario exploration, not legal or policy advice.</p>
     </footer>
 
     <script type="module" src="js/db_data.js"></script>
