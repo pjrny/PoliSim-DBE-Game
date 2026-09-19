@@ -8,7 +8,7 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <link rel="stylesheet" href="css/style.css">
 </head>
-<body class="bg-stone-100 text-stone-800 min-h-screen">
+<body class="bg-stone-100 text-stone-800 min-h-screen flex flex-col">
 
 <!-- ===================== HEADER ===================== -->
 <header class="bg-stone-800 text-stone-100 shadow-md sticky top-0 z-40">
@@ -18,12 +18,12 @@
       <p class="text-[11px] text-stone-400 -mt-0.5">Democracy-4-style governance × Dalio's Big Cycle</p>
     </div>
     <div class="flex flex-wrap items-center gap-2 text-xs">
-      <span id="hd-clock" class="badge bg-stone-700">Q1 2008 · Turn 0/40</span>
-      <span id="hd-phase" class="badge bg-amber-700 cursor-help" title="">The Top</span>
-      <span id="hd-legit" class="badge bg-stone-700" title="Legitimacy — drifts toward public sentiment. Collapse at ≤15.">Legitimacy 55</span>
-      <span id="hd-sent" class="badge bg-stone-700" title="Public sentiment from unemployment, incomes, homelessness, goodwill.">Sentiment 45</span>
-      <span id="hd-pc" class="badge bg-teal-700" title="Political Capital — spent on policy changes. +8/turn, max 100.">PC 100</span>
-      <span id="hd-funds" class="badge bg-teal-900" title="Campaign funds — spent on election campaign actions. +$5M/turn.">$100M</span>
+      <span id="hd-clock" class="badge bg-stone-700">Q1 2008 · Turn 0</span>
+      <span id="hd-phase" class="badge bg-amber-700 cursor-help" data-tip="phase">The Top</span>
+      <span id="hd-legit" class="badge bg-stone-700 cursor-help" data-tip="legitimacy">Legitimacy 55</span>
+      <span id="hd-sent" class="badge bg-stone-700 cursor-help" data-tip="sentiment">Sentiment 42</span>
+      <span id="hd-pc" class="badge bg-teal-700 cursor-help" data-tip="pc">PC 100</span>
+      <span id="hd-funds" class="badge bg-teal-900 cursor-help" data-tip="funds">$100M</span>
     </div>
     <div class="ml-auto flex items-center gap-2">
       <button id="btn-next" class="btn-primary">Next Quarter ▶</button>
@@ -34,14 +34,16 @@
   <nav class="bg-stone-700">
     <div class="max-w-7xl mx-auto px-4 flex gap-1 text-sm" id="tabs">
       <button data-tab="dashboard" class="tab-btn tab-active">Dashboard</button>
-      <button data-tab="policies" class="tab-btn">Policies</button>
-      <button data-tab="election" class="tab-btn">Election</button>
+      <button data-tab="acts" class="tab-btn">Acts</button>
+      <button data-tab="budget" class="tab-btn">Budget</button>
+      <button data-tab="network" class="tab-btn">Network</button>
+      <button data-tab="party" class="tab-btn">Party</button>
       <button data-tab="report" class="tab-btn">Report</button>
     </div>
   </nav>
 </header>
 
-<main class="max-w-7xl mx-auto px-4 py-5">
+<main class="max-w-7xl mx-auto px-4 py-5 w-full flex-1">
   <div id="toast" class="hidden fixed bottom-4 right-4 z-50 bg-stone-800 text-stone-100 text-sm px-4 py-2 rounded-lg shadow-lg"></div>
 
   <!-- game-over overlay -->
@@ -53,6 +55,23 @@
       <div class="flex gap-2 justify-end">
         <button id="ov-report" class="btn-ghost border border-stone-300">View Report</button>
         <button id="ov-new" class="btn-primary">Play Again</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- glossary modal -->
+  <div id="tip-modal" class="hidden fixed inset-0 z-50 bg-stone-900/60 flex items-center justify-center p-4">
+    <div class="bg-white rounded-xl shadow-2xl max-w-md w-full p-6">
+      <div class="flex items-start justify-between mb-2">
+        <h2 id="tip-title" class="text-lg font-bold">…</h2>
+        <button id="tip-close" class="text-stone-400 hover:text-stone-700 text-lg leading-none">✕</button>
+      </div>
+      <div id="tip-slide-label" class="text-[11px] uppercase tracking-wide text-amber-700 font-semibold mb-1"></div>
+      <p id="tip-body" class="text-sm text-stone-600 min-h-[4.5rem]"></p>
+      <div class="flex items-center justify-between mt-4">
+        <button id="tip-prev" class="btn-ghost border border-stone-300 !px-3 !py-1 text-xs">← Prev</button>
+        <div id="tip-dots" class="flex gap-1.5"></div>
+        <button id="tip-next" class="btn-ghost border border-stone-300 !px-3 !py-1 text-xs">Next →</button>
       </div>
     </div>
   </div>
@@ -72,7 +91,7 @@
           <tbody></tbody>
         </table>
       </div>
-      <p class="text-[11px] text-stone-400 mt-2">Actual = real US data (FRED / HUD / CDC) for the current simulation year.</p>
+      <p class="text-[11px] text-stone-400 mt-2">Actual = real US data (FRED / HUD / CDC) for the current simulation year; series end in 2024 (turn 68).</p>
     </div>
 
     <div class="card mb-5">
@@ -83,7 +102,8 @@
       <div class="mt-3 flex items-center gap-3 text-xs">
         <span class="text-stone-500">Composite power score:</span>
         <span id="power-score" class="font-bold text-stone-800"></span>
-        <span id="power-phase" class="badge bg-amber-700 text-white cursor-help"></span>
+        <span id="power-phase" class="badge bg-amber-700 text-white cursor-help" data-tip="phase"></span>
+        <a href="MATH_AND_LOGIC.md" class="text-teal-700 underline cursor-pointer" data-tip="formulas">All formulas ↗</a>
       </div>
     </div>
 
@@ -93,31 +113,80 @@
       <div class="card"><h3 class="card-title-sm">Unemployment (%)</h3><div class="chart-box"><canvas id="ch-unemp"></canvas></div></div>
       <div class="card"><h3 class="card-title-sm">Homelessness (thousands)</h3><div class="chart-box"><canvas id="ch-homeless"></canvas></div></div>
     </div>
-    <p class="text-[11px] text-stone-400 mt-2">Grey dashed = actual US history (annual, shown at Q4). Solid teal = your simulation.</p>
+    <p class="text-[11px] text-stone-400 mt-2">Grey dashed = actual US history (annual, shown at Q4, through 2024). Solid teal = your simulation. Endless mode: years roll on past 2017.</p>
   </section>
 
-  <!-- ===================== POLICIES ===================== -->
-  <section id="tab-policies" class="tab-pane hidden">
+  <!-- ===================== ACTS ===================== -->
+  <section id="tab-acts" class="tab-pane hidden">
     <div class="flex items-center justify-between mb-3">
-      <p class="text-sm text-stone-600">12 policy levers. Changes cost <b>Political Capital</b> and take effect gradually over their lag period.</p>
+      <p class="text-sm text-stone-600">Acts of Congress. Each is <b>heavy</b>: an upfront PC cost plus per-turn <b>upkeep</b> — if upkeep goes unpaid the Act <span class="text-amber-700 font-semibold">stalls</span> and its effects pause.</p>
       <span class="text-sm font-semibold text-teal-800" id="pol-pc"></span>
     </div>
-    <div class="grid md:grid-cols-2 xl:grid-cols-3 gap-4" id="policy-grid"></div>
+    <div class="grid md:grid-cols-2 xl:grid-cols-3 gap-4 mb-6" id="policy-grid"></div>
+    <div class="card">
+      <h2 class="card-title">National Fabric — already in force <span class="text-[11px] font-normal text-stone-400">(preloaded Acts; read-only context, not player-controlled)</span></h2>
+      <div id="preloaded-acts" class="grid md:grid-cols-2 gap-3"></div>
+    </div>
   </section>
 
-  <!-- ===================== ELECTION ===================== -->
-  <section id="tab-election" class="tab-pane hidden">
+  <!-- ===================== BUDGET ===================== -->
+  <section id="tab-budget" class="tab-pane hidden">
+    <div class="grid lg:grid-cols-3 gap-5">
+      <div class="lg:col-span-2 card">
+        <h2 class="card-title">Federal Budget — FY2008 baseline outlays, adjustable 0–200%</h2>
+        <p class="text-[11px] text-stone-400 mb-3">Sliders cost 2 PC per 10% move. ✕ deletes a category (one-time 10 PC, big backlash). Net Interest is debt-driven and locked. Hover a line for its explainer.</p>
+        <div id="budget-rows" class="space-y-1.5"></div>
+        <div class="mt-4 pt-3 border-t border-stone-200">
+          <h3 class="card-title-sm">Add a new federal sector <span class="text-stone-400 font-normal">(one-time 8 PC)</span></h3>
+          <div class="flex gap-2 items-center">
+            <select id="sector-select" class="text-xs border border-stone-300 rounded px-2 py-1.5 bg-stone-50 flex-1"></select>
+            <button id="sector-add" class="btn-primary !text-xs">Add sector</button>
+          </div>
+        </div>
+      </div>
+      <div class="space-y-5">
+        <div class="card">
+          <h3 class="card-title-sm">Totals (annualized)</h3>
+          <div id="budget-totals" class="text-xs space-y-1.5"></div>
+        </div>
+        <div class="card">
+          <h3 class="card-title-sm">How this works</h3>
+          <p class="text-xs text-stone-500">Category outlays scale with their multiplier (baseline ≈ 20.5% of GDP in total). Deviations carry real effects: more Income Security lifts demand and cuts homelessness; cutting Medicaid raises overdoses. Receipts come from your tax Acts (VAT, tariffs with Laffer saturation, church tax, LVT…). Interest grows automatically with debt × the effective rate.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== NETWORK ===================== -->
+  <section id="tab-network" class="tab-pane hidden">
+    <div class="card">
+      <h2 class="card-title">Causal Network — determinants (inner ring) × metrics (outer ring)</h2>
+      <p class="text-[11px] text-stone-400 mb-2">Green = positive influence, red = negative; width & flow speed ∝ strength. Node size scales with live values — watch the debt bubble grow. <b>Hover an Act option or move a budget slider</b> to preview which edges it touches (▲/▼ = predicted direction).</p>
+      <div class="overflow-x-auto"><svg id="network-svg" viewBox="0 0 860 640" class="w-full max-w-4xl mx-auto" style="min-width:560px"></svg></div>
+      <div id="network-legend" class="flex flex-wrap gap-3 text-[11px] text-stone-500 mt-2"></div>
+    </div>
+  </section>
+
+  <!-- ===================== PARTY ===================== -->
+  <section id="tab-party" class="tab-pane hidden">
     <div class="grid lg:grid-cols-2 gap-5">
-      <div class="card">
-        <h2 class="card-title">Voter Groups <span id="el-poll" class="float-right text-teal-800"></span></h2>
-        <div id="voter-table" class="space-y-2"></div>
-        <p class="text-[11px] text-stone-400 mt-3">Win threshold: weighted approval ≥ 50%. Elections at turn 16 (2011) and turn 32 (2015).</p>
-        <div id="election-history" class="mt-3 text-xs"></div>
+      <div class="space-y-5">
+        <div class="card">
+          <h2 class="card-title">Your Party's Power <span id="party-nextel" class="float-right text-xs text-stone-500 font-normal"></span></h2>
+          <div id="party-seats" class="space-y-2"></div>
+          <p class="text-[11px] text-stone-400 mt-3" id="party-pc-info"></p>
+        </div>
+        <div class="card">
+          <h2 class="card-title">Voter Groups <span id="el-poll" class="float-right text-teal-800"></span></h2>
+          <div id="voter-table" class="space-y-2"></div>
+          <p class="text-[11px] text-stone-400 mt-3">Win threshold: weighted approval ≥ 50%. Presidential elections at turns 20, 36, 52… (Q4 2012, Q4 2016…); midterms at turns 12, 28, 44… (−5 penalty for holding the White House). Lose the presidency and the game ends.</p>
+          <div id="election-history" class="mt-3 text-xs"></div>
+        </div>
       </div>
       <div class="space-y-5">
         <div class="card"><h3 class="card-title-sm">Polling Trend (weighted approval %)</h3><div class="chart-box"><canvas id="ch-poll"></canvas></div></div>
         <div class="card">
-          <h3 class="card-title-sm">Campaign Actions <span id="camp-funds" class="float-right"></span></h3>
+          <h3 class="card-title-sm">Court a Voter Bloc <span id="camp-funds" class="float-right"></span></h3>
           <p id="camp-status" class="text-xs text-stone-500 mb-3"></p>
           <div class="grid grid-cols-2 gap-2" id="campaign-actions"></div>
         </div>
@@ -142,18 +211,39 @@
         </table>
       </div>
     </div>
-    <div class="card">
-      <h2 class="card-title">Cause → Effect Log</h2>
-      <div id="turn-log" class="space-y-3 max-h-[34rem] overflow-y-auto pr-2"></div>
+    <div class="grid lg:grid-cols-2 gap-5">
+      <div class="card">
+        <h2 class="card-title">Cause → Effect Log</h2>
+        <div id="turn-log" class="space-y-3 max-h-[34rem] overflow-y-auto pr-2"></div>
+      </div>
+      <div class="card">
+        <h2 class="card-title">News & Social Log</h2>
+        <div id="news-log" class="space-y-1.5 max-h-[34rem] overflow-y-auto pr-2"></div>
+      </div>
     </div>
   </section>
 </main>
 
-<footer class="max-w-7xl mx-auto px-4 pb-8 text-[11px] text-stone-400">
-  PoliSim-DBE v0.2 · Phase 1 · Educational simulation — stylized model, not a forecast.
-  Data: FRED (GDPC1, UNRATE, GFDEGDQ188S…), HUD AHAR, CDC/NCHS. See MATH_AND_LOGIC.md for formulas & sources.
+<!-- ===================== NEWS STRIP ===================== -->
+<div id="news-strip" class="bg-stone-800 border-t border-stone-700 text-stone-200 text-xs">
+  <div class="max-w-7xl mx-auto px-4 py-2 flex items-center gap-3">
+    <span class="badge bg-amber-700 text-white shrink-0">NEWS</span>
+    <div id="news-item" class="truncate flex-1">Welcome to PoliSim-DBE. Advance the quarter to generate headlines.</div>
+  </div>
+</div>
+
+<footer class="bg-stone-200 border-t border-stone-300">
+  <div class="max-w-7xl mx-auto px-4 py-3 text-[11px] text-stone-500 leading-relaxed">
+    <b>PoliSim-DBE v0.3</b> · Phase 2 · Educational simulation — stylized model, not a forecast.
+    Data: FRED via igo_open_data (pulled 2026-09-19; GDPC1, GDP, UNRATE, GFDEGDQ188S, PAYEMS, MEHOINUSA672N, CPIAUCSL, FGRECPT/FGEXPND Q4 SAAR NIPA), HUD AHAR, CDC/NCHS NVSS, BJS, CBO, PWBM — full list & formulas in
+    <a href="MATH_AND_LOGIC.md" class="text-teal-700 underline">MATH_AND_LOGIC.md</a> ·
+    <a href="https://github.com/pjrny/PoliSim-DBE-Game" class="text-teal-700 underline" target="_blank" rel="noopener">github.com/pjrny/PoliSim-DBE-Game</a>
+  </div>
 </footer>
 
+<script src="js/news.js"></script>
+<script src="js/glossary.js"></script>
+<script src="js/acts_content.js"></script>
 <script src="js/data.js"></script>
 <script src="js/engine.js"></script>
 <script src="js/ui.js"></script>
