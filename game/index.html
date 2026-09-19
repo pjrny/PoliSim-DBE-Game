@@ -1,1 +1,161 @@
-<src omitted - already in context: index.html>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PoliSim-DBE — Big Cycle Governance Simulator</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body class="bg-stone-100 text-stone-800 min-h-screen">
+
+<!-- ===================== HEADER ===================== -->
+<header class="bg-stone-800 text-stone-100 shadow-md sticky top-0 z-40">
+  <div class="max-w-7xl mx-auto px-4 py-3 flex flex-wrap items-center gap-x-5 gap-y-2">
+    <div>
+      <h1 class="text-lg font-bold tracking-tight">PoliSim-DBE</h1>
+      <p class="text-[11px] text-stone-400 -mt-0.5">Democracy-4-style governance × Dalio's Big Cycle</p>
+    </div>
+    <div class="flex flex-wrap items-center gap-2 text-xs">
+      <span id="hd-clock" class="badge bg-stone-700">Q1 2008 · Turn 0/40</span>
+      <span id="hd-phase" class="badge bg-amber-700 cursor-help" title="">The Top</span>
+      <span id="hd-legit" class="badge bg-stone-700" title="Legitimacy — drifts toward public sentiment. Collapse at ≤15.">Legitimacy 55</span>
+      <span id="hd-sent" class="badge bg-stone-700" title="Public sentiment from unemployment, incomes, homelessness, goodwill.">Sentiment 45</span>
+      <span id="hd-pc" class="badge bg-teal-700" title="Political Capital — spent on policy changes. +8/turn, max 100.">PC 100</span>
+      <span id="hd-funds" class="badge bg-teal-900" title="Campaign funds — spent on election campaign actions. +$5M/turn.">$100M</span>
+    </div>
+    <div class="ml-auto flex items-center gap-2">
+      <button id="btn-next" class="btn-primary">Next Quarter ▶</button>
+      <button id="btn-new" class="btn-ghost">New Game</button>
+    </div>
+  </div>
+  <div id="event-banner" class="hidden bg-amber-100 text-amber-900 text-xs px-4 py-2 border-t border-amber-300"></div>
+  <nav class="bg-stone-700">
+    <div class="max-w-7xl mx-auto px-4 flex gap-1 text-sm" id="tabs">
+      <button data-tab="dashboard" class="tab-btn tab-active">Dashboard</button>
+      <button data-tab="policies" class="tab-btn">Policies</button>
+      <button data-tab="election" class="tab-btn">Election</button>
+      <button data-tab="report" class="tab-btn">Report</button>
+    </div>
+  </nav>
+</header>
+
+<main class="max-w-7xl mx-auto px-4 py-5">
+  <div id="toast" class="hidden fixed bottom-4 right-4 z-50 bg-stone-800 text-stone-100 text-sm px-4 py-2 rounded-lg shadow-lg"></div>
+
+  <!-- game-over overlay -->
+  <div id="overlay" class="hidden fixed inset-0 z-50 bg-stone-900/70 flex items-center justify-center p-4">
+    <div class="bg-white rounded-xl shadow-2xl max-w-lg w-full p-6">
+      <h2 id="ov-title" class="text-xl font-bold mb-2">Game Over</h2>
+      <p id="ov-body" class="text-sm text-stone-600 mb-4"></p>
+      <div id="ov-stats" class="text-xs bg-stone-100 rounded-lg p-3 mb-4 font-mono whitespace-pre-wrap"></div>
+      <div class="flex gap-2 justify-end">
+        <button id="ov-report" class="btn-ghost border border-stone-300">View Report</button>
+        <button id="ov-new" class="btn-primary">Play Again</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================== DASHBOARD ===================== -->
+  <section id="tab-dashboard" class="tab-pane">
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-5" id="stat-cards"></div>
+
+    <div class="card mb-5">
+      <h2 class="card-title">Key Metrics — Simulated vs Actual History</h2>
+      <div class="overflow-x-auto">
+        <table class="w-full text-xs" id="metrics-table">
+          <thead><tr class="text-left text-stone-500 border-b border-stone-200">
+            <th class="py-1 pr-3">Metric</th><th class="py-1 pr-3">Simulated</th>
+            <th class="py-1 pr-3">Actual (same year)</th><th class="py-1">Δ</th>
+          </tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <p class="text-[11px] text-stone-400 mt-2">Actual = real US data (FRED / HUD / CDC) for the current simulation year.</p>
+    </div>
+
+    <div class="card mb-5">
+      <h2 class="card-title">The Big Cycle — 8 Determinants of Power
+        <span class="text-[11px] font-normal text-stone-400">(Dalio: education · innovation · competitiveness · military · trade · output · financial center · reserve currency)</span>
+      </h2>
+      <div class="grid md:grid-cols-2 gap-x-8 gap-y-2" id="det-gauges"></div>
+      <div class="mt-3 flex items-center gap-3 text-xs">
+        <span class="text-stone-500">Composite power score:</span>
+        <span id="power-score" class="font-bold text-stone-800"></span>
+        <span id="power-phase" class="badge bg-amber-700 text-white cursor-help"></span>
+      </div>
+    </div>
+
+    <div class="grid md:grid-cols-2 gap-5">
+      <div class="card"><h3 class="card-title-sm">Real GDP ($bn, chained 2017)</h3><div class="chart-box"><canvas id="ch-gdp"></canvas></div></div>
+      <div class="card"><h3 class="card-title-sm">Federal Debt (% of GDP)</h3><div class="chart-box"><canvas id="ch-debt"></canvas></div></div>
+      <div class="card"><h3 class="card-title-sm">Unemployment (%)</h3><div class="chart-box"><canvas id="ch-unemp"></canvas></div></div>
+      <div class="card"><h3 class="card-title-sm">Homelessness (thousands)</h3><div class="chart-box"><canvas id="ch-homeless"></canvas></div></div>
+    </div>
+    <p class="text-[11px] text-stone-400 mt-2">Grey dashed = actual US history (annual, shown at Q4). Solid teal = your simulation.</p>
+  </section>
+
+  <!-- ===================== POLICIES ===================== -->
+  <section id="tab-policies" class="tab-pane hidden">
+    <div class="flex items-center justify-between mb-3">
+      <p class="text-sm text-stone-600">12 policy levers. Changes cost <b>Political Capital</b> and take effect gradually over their lag period.</p>
+      <span class="text-sm font-semibold text-teal-800" id="pol-pc"></span>
+    </div>
+    <div class="grid md:grid-cols-2 xl:grid-cols-3 gap-4" id="policy-grid"></div>
+  </section>
+
+  <!-- ===================== ELECTION ===================== -->
+  <section id="tab-election" class="tab-pane hidden">
+    <div class="grid lg:grid-cols-2 gap-5">
+      <div class="card">
+        <h2 class="card-title">Voter Groups <span id="el-poll" class="float-right text-teal-800"></span></h2>
+        <div id="voter-table" class="space-y-2"></div>
+        <p class="text-[11px] text-stone-400 mt-3">Win threshold: weighted approval ≥ 50%. Elections at turn 16 (2011) and turn 32 (2015).</p>
+        <div id="election-history" class="mt-3 text-xs"></div>
+      </div>
+      <div class="space-y-5">
+        <div class="card"><h3 class="card-title-sm">Polling Trend (weighted approval %)</h3><div class="chart-box"><canvas id="ch-poll"></canvas></div></div>
+        <div class="card">
+          <h3 class="card-title-sm">Campaign Actions <span id="camp-funds" class="float-right"></span></h3>
+          <p id="camp-status" class="text-xs text-stone-500 mb-3"></p>
+          <div class="grid grid-cols-2 gap-2" id="campaign-actions"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== REPORT ===================== -->
+  <section id="tab-report" class="tab-pane hidden">
+    <div class="flex flex-wrap gap-2 mb-4">
+      <button id="dl-csv" class="btn-primary">⬇ Download CSV (turn history)</button>
+      <button id="dl-json" class="btn-primary">⬇ Download JSON (full log)</button>
+    </div>
+    <div class="card mb-5">
+      <h2 class="card-title">Determinants — Game Start vs Now</h2>
+      <div class="overflow-x-auto">
+        <table class="w-full text-xs" id="det-compare">
+          <thead><tr class="text-left text-stone-500 border-b border-stone-200">
+            <th class="py-1 pr-3">Determinant</th><th class="py-1 pr-3">Start (2008)</th><th class="py-1 pr-3">Now</th><th class="py-1">Change</th>
+          </tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+    <div class="card">
+      <h2 class="card-title">Cause → Effect Log</h2>
+      <div id="turn-log" class="space-y-3 max-h-[34rem] overflow-y-auto pr-2"></div>
+    </div>
+  </section>
+</main>
+
+<footer class="max-w-7xl mx-auto px-4 pb-8 text-[11px] text-stone-400">
+  PoliSim-DBE v0.2 · Phase 1 · Educational simulation — stylized model, not a forecast.
+  Data: FRED (GDPC1, UNRATE, GFDEGDQ188S…), HUD AHAR, CDC/NCHS. See MATH_AND_LOGIC.md for formulas & sources.
+</footer>
+
+<script src="js/data.js"></script>
+<script src="js/engine.js"></script>
+<script src="js/ui.js"></script>
+</body>
+</html>

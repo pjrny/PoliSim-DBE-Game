@@ -1,1 +1,77 @@
-see above
+/* PoliSim-DBE — warm, low-saturation dashboard theme */
+:root {
+  --teal: #0f766e;
+  --teal-dark: #115e59;
+  --amber: #b45309;
+}
+html { font-family: ui-sans-serif, system-ui, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+
+.badge {
+  display: inline-block; padding: 0.2rem 0.55rem; border-radius: 9999px;
+  font-weight: 600; font-size: 0.72rem; white-space: nowrap;
+}
+
+.btn-primary {
+  background: var(--teal); color: #fff; font-weight: 600; font-size: 0.85rem;
+  padding: 0.45rem 1rem; border-radius: 0.5rem; transition: background .15s;
+}
+.btn-primary:hover { background: var(--teal-dark); }
+.btn-primary:disabled { background: #a8a29e; cursor: not-allowed; }
+.btn-ghost {
+  background: transparent; color: #d6d3d1; font-size: 0.85rem;
+  padding: 0.45rem 0.9rem; border-radius: 0.5rem; border: 1px solid #57534e;
+}
+.btn-ghost:hover { background: #44403c; }
+main .btn-ghost { color: #57534e; border-color: #d6d3d1; }
+main .btn-ghost:hover { background: #e7e5e4; }
+
+.tab-btn {
+  padding: 0.55rem 1.1rem; color: #d6d3d1; font-weight: 500;
+  border-bottom: 2px solid transparent;
+}
+.tab-btn:hover { color: #fff; }
+.tab-active { color: #fff; border-bottom-color: #fbbf24; }
+
+.card {
+  background: #fff; border: 1px solid #e7e5e4; border-radius: 0.75rem;
+  padding: 1rem 1.25rem; box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+}
+.card-title { font-weight: 700; font-size: 0.95rem; margin-bottom: 0.6rem; color: #292524; }
+.card-title-sm { font-weight: 600; font-size: 0.82rem; margin-bottom: 0.4rem; color: #44403c; }
+
+.chart-box { position: relative; height: 220px; }
+
+/* determinant gauges */
+.gauge-row { display: grid; grid-template-columns: 9rem 1fr 2.6rem; align-items: center; gap: 0.6rem; font-size: 0.75rem; }
+.gauge-track { background: #e7e5e4; border-radius: 9999px; height: 0.7rem; overflow: hidden; }
+.gauge-fill { height: 100%; border-radius: 9999px; background: linear-gradient(90deg, #14b8a6, #0f766e); transition: width .4s; }
+.gauge-fill.low { background: linear-gradient(90deg, #f59e0b, #b45309); }
+.gauge-fill.crit { background: linear-gradient(90deg, #ef4444, #b91c1c); }
+
+/* voter approval bars */
+.voter-row { display: grid; grid-template-columns: 7rem 1fr 6.5rem; align-items: center; gap: 0.6rem; font-size: 0.78rem; }
+.voter-track { background: #e7e5e4; border-radius: 9999px; height: 0.8rem; overflow: hidden; }
+.voter-fill { height: 100%; border-radius: 9999px; background: #0d9488; transition: width .4s; }
+.voter-fill.mid { background: #d97706; }
+.voter-fill.low { background: #dc2626; }
+
+/* policy cards */
+.policy-card { background: #fff; border: 1px solid #e7e5e4; border-radius: 0.75rem; padding: 0.9rem 1rem; display: flex; flex-direction: column; gap: 0.45rem; }
+.policy-card h3 { font-weight: 700; font-size: 0.88rem; color: #292524; }
+.policy-card .desc { font-size: 0.74rem; color: #57534e; }
+.policy-card .meta { font-size: 0.68rem; color: #78716c; }
+.policy-card select, .policy-card input[type="range"] { width: 100%; }
+.policy-card select {
+  font-size: 0.78rem; padding: 0.3rem 0.4rem; border: 1px solid #d6d3d1;
+  border-radius: 0.4rem; background: #fafaf9;
+}
+.policy-card select:disabled, .policy-card input:disabled { opacity: 0.55; cursor: not-allowed; }
+input[type="range"] { accent-color: var(--teal); }
+
+.log-turn { border-left: 3px solid #d6d3d1; padding-left: 0.7rem; }
+.log-turn h4 { font-size: 0.75rem; font-weight: 700; color: #44403c; }
+.log-turn li { font-size: 0.72rem; color: #57534e; list-style: disc; margin-left: 1rem; }
+
+table td { padding: 0.25rem 0.5rem 0.25rem 0; }
+.delta-pos { color: #0f766e; font-weight: 600; }
+.delta-neg { color: #b91c1c; font-weight: 600; }
