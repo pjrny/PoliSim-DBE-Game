@@ -67,7 +67,7 @@
   var TIP_LABELS = ['What is it', 'What it means', 'Why it matters'];
   var tipState = { key: null, slide: 0 };
   function tipContent(key) {
-    var g = GLOSSARY[key];
+    var g = GLOSSARY[key] || GLOSSARY['metric_' + key];
     if (g && g.slides && g.slides.length) {
       var slides = g.slides.slice(0, 3);
       while (slides.length < 3) slides.push('See MATH_AND_LOGIC.md for details.');
