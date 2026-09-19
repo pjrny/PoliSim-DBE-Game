@@ -10,9 +10,9 @@ window.HISTORY = {
   "payrolls_thousands": "FRED PAYEMS (Dec)",
   "real_median_hh_income_usd": "FRED MEHOINUSA672N",
   "cpi_index": "FRED CPIAUCSL (Dec)",
-  "fed_receipts_bn": "FRED FGRECPT (FY)",
-  "fed_outlays_bn": "FRED FGEXPND (FY)",
-  "homelessness_pit": "HUD AHAR Point-in-Time count, thousands (2004-06 estimated pre-series)",
+  "fed_receipts_bn": "FRED FGRECPT, Q4 SAAR (NIPA basis)",
+  "fed_outlays_bn": "FRED FGEXPND, Q4 SAAR (NIPA basis)",
+  "homelessness_pit": "HUD AHAR Point-in-Time count, thousands (2005=763.0, 2007=671.9, 2008=664, 2016=550, 2024=771)",
   "overdose_deaths": "CDC/NCHS National Vital Statistics",
   "incarcerated_millions": "BJS total correctional custody, approx"
  },
@@ -226,9 +226,9 @@ window.HISTORY = {
  },
  "homelessness_pit": {
   "2004": 755,
-  "2005": 744,
+  "2005": 763.0,
   "2006": 759,
-  "2007": 647,
+  "2007": 671.9,
   "2008": 664,
   "2009": 643,
   "2010": 650,
@@ -295,8 +295,9 @@ window.HISTORY = {
  }
 };
 
+
 /* ============================================================================
-   PoliSim-DBE — moddable game configuration
+   PoliSim-DBE v0.3 — moddable game configuration
    fx fields understood by engine.js (all at full ramp strength):
      demand        pp added to annualized real GDP growth per turn
      outlay        change in federal outlays, % of GDP (negative = savings)
@@ -306,10 +307,17 @@ window.HISTORY = {
      incarcPct     %/quarter change in incarcerated population
      rentPressure  %/quarter shift in rent pressure
      workersBonus  0..1 boost to median income growth
+     legitAdd      legitimacy points/turn while active
+     sentAdd       sentiment points/turn while active
+     pcRegen       extra Political Capital per turn
+     fundsMult     multiplier on campaign-fund income (e.g. 0.9 = -10%)
      det           {determinant: per-turn delta}
      groupDrift    {group: per-turn approval delta while active}
-   groups          {group: one-time approval delta, applied linearly over lag}
-   pc              political-capital cost to switch to this option
+     groups        {group: one-time approval delta, applied linearly over lag}
+   pc              political-capital cost to switch to this option (upfront)
+   upkeep          {perTurn, turns} — Acts are HEAVY: while upkeep is unpaid
+                   (PC short) the Act is STALLED and its effects pause.
+   lag             per-option override of the policy lag (turns)
    ========================================================================== */
 
 window.VOTER_GROUPS = {
@@ -324,162 +332,273 @@ window.VOTER_GROUPS = {
 
 window.POLICY_DEFS = [
   {
-    id: 'tax', name: 'Tax Reform', kind: 'slider', min: 0, max: 100, step: 10, unit: '%',
+    id: 'tax', name: 'Tax Reform Act', kind: 'slider', min: 0, max: 100, step: 10, unit: '%',
     def: 0, lag: 2, pcPerStep: 2, minPc: 5, maxPc: 25,
     desc: 'Share of federal income tax replaced by a national VAT (0–100%).',
     cost: 'Revenue-efficient, but regressive unless Welfare ≥ Expanded.',
     expected: 'Primary: +0.45% of GDP revenue per 10 pts. Secondary: small competitiveness gain; Workers approval drifts down if VAT > 30% without transfers. Lag 2 turns.'
   },
   {
-    id: 'military', name: 'Military Reallocation', kind: 'select', def: 'hold', lag: 2,
-    desc: 'Rebalance the defense budget; freed funds split between healthcare, cybersecurity and R&D.',
-    cost: 'Cuts save ~0.5–1.0% of GDP but weaken the military determinant.',
-    expected: 'Primary: budget savings or stimulus. Secondary: innovation ↑ on reallocation, military ↓ on cuts. Lag 2 turns.',
+    id: 'military', name: 'Military Reallocation Act', kind: 'select', def: 'hold', lag: 2,
+    desc: 'Rebalance the defense budget; freed funds are reallocated — spend-neutral — to R&D, health and cyber.',
+    cost: 'Spend-neutral reallocation: outlays ~unchanged (≤ −0.05% GDP admin saving), demand boosted by higher-multiplier spending.',
+    expected: 'Primary: demand +0.15/+0.3 pp on reallocation (ΔY ≈ (m_new−m_def)·ΔG, spend constant). Secondary: innovation ↑, military ↓. Lag 2 turns.',
     options: [
-      { id: 'increase', label: 'Increase', pc: 10, fx: { outlay: 0.9, demand: 0.2, det: { military: 1.0 } }, groups: { religious: 2, workers: 1, technocrats: -2 } },
+      { id: 'increase', label: 'Increase', pc: 10, upkeep: { perTurn: 2, turns: 8 }, fx: { outlay: 0.9, demand: 0.2, det: { military: 1.0 } }, groups: { religious: 2, workers: 1, technocrats: -2 } },
       { id: 'hold', label: 'Hold', pc: 5, fx: {}, groups: {} },
-      { id: 'cut25', label: 'Cut 25%', pc: 15, fx: { outlay: -0.5, det: { military: -1, innovation: 0.2 } }, groups: { religious: -2, capitalists: 2, technocrats: 2, youth: 1 } },
-      { id: 'cut50', label: 'Cut 50%', pc: 22, fx: { outlay: -1.0, det: { military: -2, innovation: 0.35, education: 0.1 } }, groups: { religious: -4, capitalists: 3, technocrats: 3, youth: 2, workers: -1 } }
+      { id: 'cut25', label: 'Reallocate 25% to R&D, health & cyber', pc: 15, upkeep: { perTurn: 2, turns: 8 }, fx: { outlay: -0.05, demand: 0.15, det: { military: -1, innovation: 0.2 } }, groups: { religious: -2, capitalists: 2, technocrats: 2, youth: 1 } },
+      { id: 'cut50', label: 'Reallocate 50% to R&D, health & cyber', pc: 22, upkeep: { perTurn: 3, turns: 8 }, fx: { outlay: -0.05, demand: 0.3, det: { military: -2, innovation: 0.35, education: 0.1 } }, groups: { religious: -4, capitalists: 3, technocrats: 3, youth: 2, workers: -1 } }
     ]
   },
   {
-    id: 'drug', name: 'Drug Policy', kind: 'select', def: 'prohibited', lag: 4,
+    id: 'drug', name: 'Drug Policy Act', kind: 'select', def: 'prohibited', lag: 6,
     desc: 'Set the federal posture on narcotics, from prohibition to a legal, taxed market.',
-    cost: 'Legal+Taxed adds ~0.3% of GDP in revenue; effects on overdoses lag ~4 turns.',
-    expected: 'Primary: overdose & incarceration trajectories. Secondary: revenue if taxed; Religious approval −. Lag 4 turns.',
+    cost: 'Legal+Taxed adds ~0.3% of GDP in revenue; legal-status effects are immediate, treatment effects lag ~6 turns.',
+    expected: 'Primary: overdose & incarceration trajectories — cumulative overdose reduction CAPPED at −15% vs enactment (needs Healthcare ≥ Public option for treatment capacity; otherwise −7%); Decriminalized caps at −7%. Secondary: Religious approval −. Lag 6 turns.',
     options: [
       { id: 'prohibited', label: 'Prohibited', pc: 5, fx: {}, groups: { religious: 2 } },
-      { id: 'decriminalized', label: 'Decriminalized', pc: 12, fx: { incarcPct: -0.6, odPct: -0.8 }, groups: { religious: -3, youth: 3, immigrants: 2 } },
-      { id: 'legal', label: 'Legal + Taxed', pc: 20, fx: { revAdd: 0.3, odPct: -3.0, incarcPct: -1.2 }, groups: { religious: -8, youth: 6, capitalists: 3, technocrats: 2 } }
+      { id: 'decriminalized', label: 'Decriminalized', pc: 12, upkeep: { perTurn: 2, turns: 8 }, fx: { incarcPct: -0.6, odPct: -0.8 }, groups: { religious: -3, youth: 3, immigrants: 2 } },
+      { id: 'legal', label: 'Legal + Taxed', pc: 20, upkeep: { perTurn: 3, turns: 8 }, fx: { revAdd: 0.3, odPct: -3.0, incarcPct: -1.2 }, groups: { religious: -8, youth: 6, capitalists: 3, technocrats: 2 } }
     ]
   },
   {
-    id: 'church', name: 'Church Taxation', kind: 'select', def: 'exempt', lag: 1,
+    id: 'church', name: 'Church Taxation Act', kind: 'select', def: 'exempt', lag: 1,
     desc: 'Decide whether religious organizations keep their tax exemption.',
-    cost: 'Taxing churches adds up to ~0.15% of GDP in revenue.',
-    expected: 'Primary: small revenue gain. Secondary: Religious approval −−, Technocrats/Youth +. Lag 1 turn.',
+    cost: 'Full taxation adds ~0.35% of GDP in revenue ($70–80bn/yr gross anchor, discounted for behavioral response).',
+    expected: 'Primary: revenue gain (0.07% property-only, 0.35% full). Secondary: Religious approval −−, Technocrats/Youth +. Lag 1 turn.',
     options: [
       { id: 'exempt', label: 'Exempt', pc: 5, fx: {}, groups: { religious: 2 } },
-      { id: 'property', label: 'Property tax only', pc: 10, fx: { revAdd: 0.07 }, groups: { religious: -6, technocrats: 2, youth: 1 } },
-      { id: 'charity', label: 'Taxed like charity', pc: 16, fx: { revAdd: 0.15 }, groups: { religious: -12, technocrats: 4, youth: 3 } }
+      { id: 'property', label: 'Property tax only', pc: 10, upkeep: { perTurn: 1, turns: 6 }, fx: { revAdd: 0.07 }, groups: { religious: -6, technocrats: 2, youth: 1 } },
+      { id: 'charity', label: 'Taxed like charity', pc: 16, upkeep: { perTurn: 2, turns: 8 }, fx: { revAdd: 0.35 }, groups: { religious: -12, technocrats: 4, youth: 3 } }
     ]
   },
   {
-    id: 'housing', name: 'Housing', kind: 'select', def: 'statusquo', lag: 2,
+    id: 'housing', name: 'Housing Act', kind: 'select', def: 'statusquo', lag: 2,
     desc: 'Attack the housing cost crisis via supply, direct funding, or radical market intervention.',
-    cost: 'Housing First costs ~0.25% of GDP; rent bans are economically chaotic.',
-    expected: 'Primary: homelessness trajectory. Secondary: rent pressure; a rental ban shocks homelessness +6%/qtr for 4 turns, then −4%/qtr. Lag 2 turns.',
+    cost: 'Housing First costs ~0.25% of GDP; rent bans cause a supply collapse that outlasts the ban itself.',
+    expected: 'Primary: homelessness trajectory. Zoning reform lags 8 turns (permits → construction). A rental ban shocks homelessness +6%/qtr for 4 turns, then sustained rent pressure +1.5 (supply collapse persists). Housing First clearly wins long-run. Lag 2 turns.',
     options: [
       { id: 'statusquo', label: 'Status quo', pc: 5, fx: {}, groups: {} },
-      { id: 'zoning', label: 'Zoning reform', pc: 12, fx: { rentPressure: -0.6, homelessPct: -0.8, det: { competitiveness: 0.1 } }, groups: { capitalists: -3, workers: 3, youth: 4, immigrants: 2 } },
-      { id: 'housingfirst', label: 'Housing First funding', pc: 15, fx: { outlay: 0.25, homelessPct: -2.5 }, groups: { workers: 4, youth: 3, capitalists: -2, seniors: 2 } },
-      { id: 'rentban', label: 'Rental-market ban (radical)', pc: 25, fx: { rentban: true }, groups: { capitalists: -12, workers: 5, youth: 6, technocrats: -6 } }
+      { id: 'zoning', label: 'Zoning reform', pc: 12, lag: 8, upkeep: { perTurn: 2, turns: 8 }, fx: { rentPressure: -0.6, homelessPct: -0.8, det: { competitiveness: 0.1 } }, groups: { capitalists: -3, workers: 3, youth: 4, immigrants: 2 } },
+      { id: 'housingfirst', label: 'Housing First funding', pc: 15, upkeep: { perTurn: 3, turns: 8 }, fx: { outlay: 0.25, homelessPct: -2.5 }, groups: { workers: 4, youth: 3, capitalists: -2, seniors: 2 } },
+      { id: 'rentban', label: 'Rental-market ban (radical)', pc: 25, upkeep: { perTurn: 4, turns: 8 }, fx: { rentban: true }, groups: { capitalists: -12, workers: 5, youth: 6, technocrats: -6 } }
     ]
   },
   {
-    id: 'immigration', name: 'Immigration', kind: 'select', def: 'statusquo', lag: 2,
+    id: 'immigration', name: 'Immigration Act', kind: 'select', def: 'statusquo', lag: 2,
     desc: 'Set the stance on immigration flows and enforcement.',
     cost: 'Reform expands labor supply, trade and innovation.',
     expected: 'Primary: trade & competitiveness determinants. Secondary: small demand boost; Immigrant approval ±±. Lag 2 turns.',
     options: [
-      { id: 'restrictive', label: 'Restrictive', pc: 10, fx: { demand: -0.1, det: { trade: -0.1, competitiveness: -0.05 } }, groups: { immigrants: -12, religious: 4, workers: 2, capitalists: -2 } },
+      { id: 'restrictive', label: 'Restrictive', pc: 10, upkeep: { perTurn: 1, turns: 6 }, fx: { demand: -0.1, det: { trade: -0.1, competitiveness: -0.05 } }, groups: { immigrants: -12, religious: 4, workers: 2, capitalists: -2 } },
       { id: 'statusquo', label: 'Status quo', pc: 5, fx: {}, groups: {} },
-      { id: 'reformed', label: 'Reformed (easier, strict enforcement)', pc: 15, fx: { demand: 0.1, det: { trade: 0.15, competitiveness: 0.1 } }, groups: { immigrants: 10, religious: -2, workers: -1, capitalists: 4, technocrats: 4 } },
-      { id: 'open', label: 'Open-with-rules', pc: 20, fx: { demand: 0.2, det: { trade: 0.25, innovation: 0.15, competitiveness: 0.1 } }, groups: { immigrants: 15, religious: -5, workers: -4, capitalists: 5, technocrats: 6 } }
+      { id: 'reformed', label: 'Reformed (easier, strict enforcement)', pc: 15, upkeep: { perTurn: 2, turns: 8 }, fx: { demand: 0.1, det: { trade: 0.15, competitiveness: 0.1 } }, groups: { immigrants: 10, religious: -2, workers: -1, capitalists: 4, technocrats: 4 } },
+      { id: 'open', label: 'Open-with-rules', pc: 20, upkeep: { perTurn: 3, turns: 8 }, fx: { demand: 0.2, det: { trade: 0.25, innovation: 0.15, competitiveness: 0.1 } }, groups: { immigrants: 15, religious: -5, workers: -4, capitalists: 5, technocrats: 6 } }
     ]
   },
   {
-    id: 'welfare', name: 'Welfare', kind: 'select', def: 'statusquo', lag: 2,
+    id: 'welfare', name: 'Welfare Act', kind: 'select', def: 'statusquo', lag: 2,
     desc: 'Design the social safety net, from status quo to a Universal Basic Income.',
     cost: 'Expanded +0.8%, cash transfers +1.2%, UBI +3.0% of GDP outlays.',
     expected: 'Primary: demand stimulus & median-income support (workers_bonus). Secondary: homelessness ↓; Capitalists approval −. Lag 2 turns.',
     options: [
       { id: 'statusquo', label: 'Status quo', pc: 5, fx: {}, groups: {} },
-      { id: 'expanded', label: 'Expanded', pc: 12, fx: { outlay: 0.8, demand: 0.4, workersBonus: 0.4, homelessPct: -0.8 }, groups: { workers: 6, capitalists: -4, seniors: 4, youth: 2 } },
-      { id: 'cash', label: 'Cash transfers (social score)', pc: 16, fx: { outlay: 1.2, demand: 0.5, workersBonus: 0.6, homelessPct: -1.0 }, groups: { workers: 8, capitalists: -8, technocrats: -3, religious: 2, seniors: 3 } },
-      { id: 'ubi', label: 'UBI', pc: 24, fx: { outlay: 3.0, demand: 0.8, workersBonus: 1.0, homelessPct: -1.5 }, groups: { workers: 8, capitalists: -10, youth: 6, seniors: 5, technocrats: 2 } }
+      { id: 'expanded', label: 'Expanded', pc: 12, upkeep: { perTurn: 2, turns: 8 }, fx: { outlay: 0.8, demand: 0.4, workersBonus: 0.4, homelessPct: -0.8 }, groups: { workers: 6, capitalists: -4, seniors: 4, youth: 2 } },
+      { id: 'cash', label: 'Cash transfers (social score)', pc: 16, upkeep: { perTurn: 3, turns: 8 }, fx: { outlay: 1.2, demand: 0.5, workersBonus: 0.6, homelessPct: -1.0 }, groups: { workers: 8, capitalists: -8, technocrats: -3, religious: 2, seniors: 3 } },
+      { id: 'ubi', label: 'UBI', pc: 24, upkeep: { perTurn: 4, turns: 10 }, fx: { outlay: 3.0, demand: 0.8, workersBonus: 1.0, homelessPct: -1.5 }, groups: { workers: 8, capitalists: -10, youth: 6, seniors: 5, technocrats: 2 } }
     ]
   },
   {
-    id: 'education', name: 'Education', kind: 'select', def: 'statusquo', lag: 3,
+    id: 'education', name: 'Education Act', kind: 'select', def: 'statusquo', lag: 8,
     desc: 'Invest in human capital: vocational tracks, year-round schooling, or full reform.',
     cost: 'Vocational +0.3%, year-round +0.5%, full reform +1.0% of GDP outlays.',
-    expected: 'Primary: education determinant +0.3 to +0.7/turn. Secondary: innovation ↑ on full reform; Youth & Workers approval +. Lag 3 turns.',
+    expected: 'Primary: education determinant +0.3 to +0.7/turn. Secondary: innovation ↑ on full reform; Youth & Workers approval +. Lag 8 turns (human capital is slow).',
     options: [
       { id: 'statusquo', label: 'Status quo', pc: 5, fx: {}, groups: {} },
-      { id: 'vocational', label: 'Vocational boost', pc: 10, fx: { outlay: 0.3, workersBonus: 0.1, det: { education: 0.3 } }, groups: { workers: 4, youth: 3 } },
-      { id: 'yearround', label: 'Year-round + apprenticeships', pc: 14, fx: { outlay: 0.5, workersBonus: 0.2, det: { education: 0.45, innovation: 0.05 } }, groups: { workers: 5, youth: 5, religious: -2 } },
-      { id: 'full', label: 'Full reform + R&D universities', pc: 20, fx: { outlay: 1.0, workersBonus: 0.25, det: { education: 0.7, innovation: 0.15 } }, groups: { youth: 8, technocrats: 6, workers: 6, capitalists: -3 } }
+      { id: 'vocational', label: 'Vocational boost', pc: 10, upkeep: { perTurn: 2, turns: 8 }, fx: { outlay: 0.3, workersBonus: 0.1, det: { education: 0.3 } }, groups: { workers: 4, youth: 3 } },
+      { id: 'yearround', label: 'Year-round + apprenticeships', pc: 14, upkeep: { perTurn: 3, turns: 8 }, fx: { outlay: 0.5, workersBonus: 0.2, det: { education: 0.45, innovation: 0.05 } }, groups: { workers: 5, youth: 5, religious: -2 } },
+      { id: 'full', label: 'Full reform + R&D universities', pc: 20, upkeep: { perTurn: 4, turns: 10 }, fx: { outlay: 1.0, workersBonus: 0.25, det: { education: 0.7, innovation: 0.15 } }, groups: { youth: 8, technocrats: 6, workers: 6, capitalists: -3 } }
     ]
   },
   {
-    id: 'tariffs', name: 'Tariffs', kind: 'slider', min: 0, max: 25, step: 1, unit: '%',
+    id: 'tariffs', name: 'Tariff Act', kind: 'slider', min: 0, max: 25, step: 1, unit: '%',
     def: 0, lag: 1, pcPerStep: 1, minPc: 5, maxPc: 25,
     desc: 'Average import tariff rate (0–25%).',
-    cost: 'Raises ~0.35% of GDP revenue per point but drags growth and competitiveness.',
+    cost: 'Revenue saturates above ~10% (Laffer: rev/pt = 0.35% × 10/max(10, rate)); drags growth and competitiveness.',
     expected: 'Primary: −0.08 pp growth per tariff point (PWBM-style drag). Secondary: trade −0.1/pt and competitiveness −0.05/pt per turn; Workers +, Capitalists −. Lag 1 turn.',
     groupDriftPerPt: { workers: 0.03, capitalists: -0.04, technocrats: -0.02 }
   },
   {
-    id: 'healthcare', name: 'Healthcare', kind: 'select', def: 'statusquo', lag: 3,
-    desc: 'Expand public health coverage — a public option or universal system.',
+    id: 'healthcare', name: 'Healthcare Act', kind: 'select', def: 'statusquo', lag: 3,
+    desc: 'Expand public health coverage — a public option or universal system. Also gates drug-treatment capacity.',
     cost: 'Public option +0.7%, universal +2.2% of GDP outlays.',
-    expected: 'Primary: treatment funding cuts overdoses −1.5%/qtr. Secondary: Seniors & Workers approval ++. Lag 3 turns.',
+    expected: 'Primary: treatment funding cuts overdoses −1.5%/qtr and unlocks the full −15% drug-legalization cap. Secondary: Seniors & Workers approval ++. Lag 3 turns.',
     options: [
       { id: 'statusquo', label: 'Status quo', pc: 5, fx: {}, groups: {} },
-      { id: 'public', label: 'Public option', pc: 14, fx: { outlay: 0.7, odPct: -1.5 }, groups: { workers: 5, seniors: 5, capitalists: -4, religious: -1, youth: 2 } },
-      { id: 'universal', label: 'Universal', pc: 22, fx: { outlay: 2.2, odPct: -1.5, homelessPct: -0.5 }, groups: { workers: 8, seniors: 8, youth: 4, capitalists: -9, religious: -2 } }
+      { id: 'public', label: 'Public option', pc: 14, upkeep: { perTurn: 2, turns: 8 }, fx: { outlay: 0.7, odPct: -1.5 }, groups: { workers: 5, seniors: 5, capitalists: -4, religious: -1, youth: 2 } },
+      { id: 'universal', label: 'Universal', pc: 22, upkeep: { perTurn: 4, turns: 10 }, fx: { outlay: 2.2, odPct: -1.5, homelessPct: -0.5 }, groups: { workers: 8, seniors: 8, youth: 4, capitalists: -9, religious: -2 } }
     ]
   },
   {
-    id: 'law', name: 'Law Enforcement', kind: 'select', def: 'statusquo', lag: 2,
+    id: 'law', name: 'Law Enforcement Act', kind: 'select', def: 'statusquo', lag: 2,
     desc: 'Set policing and sentencing doctrine.',
     cost: 'Tough-on-crime grows incarceration ~+1%/qtr; reforms shrink it.',
     expected: 'Primary: incarceration trajectory. Secondary: group approvals (Religious/Seniors vs Youth/Immigrants). Lag 2 turns.',
     options: [
       { id: 'statusquo', label: 'Status quo', pc: 5, fx: {}, groups: {} },
-      { id: 'community', label: 'Community policing', pc: 10, fx: { incarcPct: -0.3 }, groups: { immigrants: 4, youth: 3, religious: -1 } },
-      { id: 'reform', label: 'Reform + harsh heinous penalties', pc: 15, fx: { incarcPct: -0.8 }, groups: { immigrants: 5, youth: 4, workers: 2, religious: -3, technocrats: 2 } },
-      { id: 'tough', label: 'Tough-on-crime', pc: 12, fx: { incarcPct: 1.0 }, groups: { religious: 5, seniors: 3, immigrants: -6, youth: -5, technocrats: -2 } }
+      { id: 'community', label: 'Community policing', pc: 10, upkeep: { perTurn: 1, turns: 6 }, fx: { incarcPct: -0.3 }, groups: { immigrants: 4, youth: 3, religious: -1 } },
+      { id: 'reform', label: 'Reform + harsh heinous penalties', pc: 15, upkeep: { perTurn: 2, turns: 8 }, fx: { incarcPct: -0.8 }, groups: { immigrants: 5, youth: 4, workers: 2, religious: -3, technocrats: 2 } },
+      { id: 'tough', label: 'Tough-on-crime', pc: 12, upkeep: { perTurn: 2, turns: 8 }, fx: { incarcPct: 1.0 }, groups: { religious: 5, seniors: 3, immigrants: -6, youth: -5, technocrats: -2 } }
     ]
   },
   {
-    id: 'infra', name: 'Infrastructure & R&D', kind: 'slider', min: 0, max: 3, step: 0.25, unit: '% GDP',
+    id: 'infra', name: 'Infrastructure & R&D Act', kind: 'slider', min: 0, max: 3, step: 0.25, unit: '% GDP',
     def: 0, lag: 2, pcPerStep: 2, minPc: 5, maxPc: 25,
     desc: 'Extra federal investment in infrastructure and R&D, as % of GDP.',
     cost: 'Each 0.25% of GDP costs that much in outlays; powerful crisis stimulus.',
     expected: 'Primary: +0.25 pp demand stimulus per 1% of GDP. Secondary: innovation +0.25/turn when ≥1.5% of GDP; output determinant ↑. Lag 2 turns.',
     groupDriftPerPt: { workers: 0.5, technocrats: 0.3 }
+  },
+  /* ---------------- v0.3 NEW ACTS ---------------- */
+  {
+    id: 'ubi', name: 'Freedom Dividend Act', kind: 'select', def: 'off', lag: 2,
+    desc: '$1,000/month universal dividend, paired with a VAT that offsets its revenue line.',
+    cost: 'Outlays +2.9% of GDP; revenue ≈ neutral by construction (paired VAT assumption).',
+    expected: 'Primary: demand +1.2 pp; homelessness −2.0%/qtr, cumulative reduction capped at −25% vs enactment. Secondary: Youth/Workers/Immigrants up, Capitalists down. Lag 2 turns.',
+    options: [
+      { id: 'off', label: 'Not enacted', pc: 5, fx: {}, groups: {} },
+      { id: 'dividend', label: 'Enact $1,000/mo dividend', pc: 30, upkeep: { perTurn: 6, turns: 12 }, fx: { outlay: 2.9, revAdd: 0, demand: 1.2, homelessPct: -2.0, workersBonus: 0.5 }, groups: { youth: 8, workers: 8, immigrants: 6, capitalists: -10, seniors: 3, technocrats: 2 } }
+    ]
+  },
+  {
+    id: 'lvt', name: 'Land Value Tax Act', kind: 'select', def: 'off', lag: 4,
+    desc: 'Tax the unimproved value of land — no disincentive to build, strong incentive to use land.',
+    cost: 'Adds ~0.4% of GDP in revenue; landowners and capital approve little.',
+    expected: 'Primary: rent pressure −1, housing supply up (homelessness −0.4%/qtr). Secondary: competitiveness +0.15/turn (deadweight-loss-free revenue). Lag 4 turns.',
+    options: [
+      { id: 'off', label: 'Not enacted', pc: 5, fx: {}, groups: {} },
+      { id: 'enact', label: 'Enact LVT', pc: 22, upkeep: { perTurn: 4, turns: 8 }, fx: { revAdd: 0.4, rentPressure: -1, homelessPct: -0.4, det: { competitiveness: 0.15 } }, groups: { capitalists: -6, workers: 4, youth: 3, technocrats: 3 } }
+    ]
+  },
+  {
+    id: 'media', name: 'Public Journalism Fund Act', kind: 'select', def: 'off', lag: 2,
+    desc: 'Independent fund supporting local and investigative journalism.',
+    cost: 'Tiny outlay (+0.03% of GDP); large civic returns.',
+    expected: 'Primary: legitimacy +0.6/turn, sentiment +0.4/turn (internal conflict ↓ via sentiment). Secondary: Technocrats approval +. Lag 2 turns.',
+    options: [
+      { id: 'off', label: 'Not enacted', pc: 5, fx: {}, groups: {} },
+      { id: 'enact', label: 'Enact journalism fund', pc: 14, upkeep: { perTurn: 2, turns: 8 }, fx: { outlay: 0.03, legitAdd: 0.6, sentAdd: 0.4 }, groups: { technocrats: 4, youth: 1 } }
+    ]
+  },
+  {
+    id: 'democracy', name: 'Democracy Dollars + RCV Act', kind: 'select', def: 'off', lag: 2,
+    desc: 'Citizen campaign vouchers (Democracy Dollars) plus ranked-choice voting.',
+    cost: 'Party funds income −10% (small-donor vouchers crowd out big money); legitimacy and participation rise.',
+    expected: 'Primary: PC regeneration +2/turn (broader mandate), legitimacy +0.5/turn, conflict ↓ via sentiment +0.3/turn. Secondary: Technocrats/Youth +, Capitalists −. Lag 2 turns.',
+    options: [
+      { id: 'off', label: 'Not enacted', pc: 5, fx: {}, groups: {} },
+      { id: 'enact', label: 'Enact vouchers + RCV', pc: 18, upkeep: { perTurn: 2, turns: 8 }, fx: { pcRegen: 2, legitAdd: 0.5, sentAdd: 0.3, fundsMult: 0.9 }, groups: { technocrats: 3, youth: 3, capitalists: -2 } }
+    ]
   }
+];
+
+/* ============================================================================
+   Federal budget categories — FY2008 approximate outlays ($bn, NIPA-ish).
+   Total ≈ $2,991bn ≈ 20.5% of 2008 nominal GDP ($14,608bn).
+   fx = effects per +10% deviation from baseline funding (mult 1.0).
+   ========================================================================== */
+window.BUDGET_CATS = [
+  { id: 'defense',         name: 'Defense',                base_bn: 616, fx: { demand: 0.03, det: { military: 0.04 }, groups: { religious: 0.1, technocrats: -0.05 } }, backlash: { religious: -8, workers: -6 } },
+  { id: 'social_security', name: 'Social Security',        base_bn: 615, fx: { demand: 0.02, groups: { seniors: 0.3 } }, backlash: { seniors: -25, workers: -8 } },
+  { id: 'medicare',        name: 'Medicare',               base_bn: 390, fx: { odPct: -0.05, groups: { seniors: 0.25 } }, backlash: { seniors: -22 } },
+  { id: 'medicaid',        name: 'Medicaid',               base_bn: 201, fx: { odPct: -0.08, homelessPct: -0.05, groups: { workers: 0.1 } }, backlash: { workers: -12, immigrants: -8 } },
+  { id: 'income_security', name: 'Income Security',        base_bn: 261, fx: { demand: 0.03, homelessPct: -0.08, groups: { workers: 0.15 } }, backlash: { workers: -14, youth: -6 } },
+  { id: 'health',          name: 'Health (other)',         base_bn: 265, fx: { odPct: -0.06, groups: { seniors: 0.05 } }, backlash: { seniors: -8, workers: -6 } },
+  { id: 'veterans',        name: 'Veterans',               base_bn: 47,  fx: { groups: { religious: 0.1, workers: 0.05 } }, backlash: { religious: -10, workers: -6 } },
+  { id: 'education',       name: 'Education',              base_bn: 57,  fx: { det: { education: 0.05 }, groups: { youth: 0.1 } }, backlash: { youth: -12, workers: -5 } },
+  { id: 'transport',       name: 'Transportation',         base_bn: 64,  fx: { demand: 0.025, det: { competitiveness: 0.02 } }, backlash: { workers: -6 } },
+  { id: 'environment',     name: 'Environment & Energy',   base_bn: 30,  fx: { det: { competitiveness: 0.01 }, groups: { youth: 0.08, capitalists: -0.05 } }, backlash: { youth: -8 } },
+  { id: 'international',   name: 'International Affairs',  base_bn: 29,  fx: { det: { trade: 0.02 } }, backlash: { technocrats: -5, religious: -3 } },
+  { id: 'science',         name: 'Science & Space',        base_bn: 25,  fx: { det: { innovation: 0.06 }, groups: { technocrats: 0.1 } }, backlash: { technocrats: -10, youth: -4 } },
+  { id: 'justice',         name: 'Justice',                base_bn: 48,  fx: { incarcPct: 0.05, groups: { religious: 0.03 } }, backlash: { religious: -6, seniors: -4 } },
+  { id: 'interest',        name: 'Net Interest (auto)',    base_bn: 253, locked: true, fx: {}, backlash: {} },
+  { id: 'other',           name: 'Other / Adjustments',    base_bn: 90,  fx: {}, backlash: { technocrats: -4 } }
+];
+
+/* Add-on sectors (Budget tab "add sector", one-time 8 PC each).
+   fx100 = effects at 100% funding; gdpPct = baseline cost as % of GDP. */
+window.NEW_SECTORS = [
+  { id: 'green_energy',   name: 'Green Energy Transition', gdpPct: 0.20, fx100: { demand: 0.2,  det: { innovation: 0.2, competitiveness: 0.1 }, groups: { youth: 1, capitalists: -1 } } },
+  { id: 'universal_prek', name: 'Universal Pre-K',         gdpPct: 0.15, fx100: { det: { education: 0.4 }, groups: { workers: 1, youth: 0.5 } } },
+  { id: 'mental_health',  name: 'Mental Health Expansion', gdpPct: 0.10, fx100: { odPct: -0.5, groups: { seniors: 0.5, workers: 0.5 } } },
+  { id: 'broadband',      name: 'Rural Broadband',         gdpPct: 0.08, fx100: { det: { innovation: 0.3, trade: 0.1 }, groups: { technocrats: 0.8, workers: 0.4 } } }
+];
+
+/* ============================================================================
+   Network graph edges: {from, to, sign (+1/-1), strength 1..3}
+   Nodes: 8 determinants (inner ring) + 8 metrics (outer ring).
+   ========================================================================== */
+window.NETWORK_DEF = [
+  { from: 'education', to: 'innovation', sign: 1, strength: 2 },
+  { from: 'education', to: 'output', sign: 1, strength: 2 },
+  { from: 'education', to: 'med_income', sign: 1, strength: 2 },
+  { from: 'innovation', to: 'competitiveness', sign: 1, strength: 2 },
+  { from: 'innovation', to: 'output', sign: 1, strength: 2 },
+  { from: 'competitiveness', to: 'trade', sign: 1, strength: 1 },
+  { from: 'competitiveness', to: 'gdp', sign: 1, strength: 2 },
+  { from: 'trade', to: 'output', sign: 1, strength: 2 },
+  { from: 'output', to: 'gdp', sign: 1, strength: 3 },
+  { from: 'output', to: 'unemployment', sign: -1, strength: 3 },
+  { from: 'unemployment', to: 'homelessness', sign: 1, strength: 2 },
+  { from: 'unemployment', to: 'sentiment', sign: -1, strength: 2 },
+  { from: 'med_income', to: 'sentiment', sign: 1, strength: 2 },
+  { from: 'homelessness', to: 'sentiment', sign: -1, strength: 1 },
+  { from: 'overdoses', to: 'sentiment', sign: -1, strength: 1 },
+  { from: 'incarcerated', to: 'sentiment', sign: -1, strength: 1 },
+  { from: 'debt', to: 'fincenter', sign: -1, strength: 2 },
+  { from: 'debt', to: 'reserve_fx', sign: -1, strength: 2 },
+  { from: 'reserve_fx', to: 'debt', sign: -1, strength: 1 },
+  { from: 'military', to: 'innovation', sign: 1, strength: 1 },
+  { from: 'fincenter', to: 'gdp', sign: 1, strength: 1 },
+  { from: 'gdp', to: 'debt', sign: -1, strength: 2 },
+  { from: 'sentiment', to: 'output', sign: 1, strength: 1 }
 ];
 
 window.EVENTS = {
   gfc: {
     name: 'Global Financial Crisis',
-    banner: '📉 GLOBAL FINANCIAL CRISIS — credit freeze and demand collapse. Growth shocks are hitting the economy; stimulus (Infrastructure & R&D, Welfare) can offset them.',
+    banner: '📉 GLOBAL FINANCIAL CRISIS — credit freeze and demand collapse. Growth shocks are hitting the economy; stimulus (Infrastructure & R&D, Welfare, budget lines) can offset them.',
     shocks: { 1: -2.5, 2: -6.5, 3: -4.0, 4: -1.5, 5: 0 }, // pp growth shock per turn
     // labor-market scarring: direct unemployment shock (pp/quarter) on top of Okun
     unempShock: { 1: 0.2, 2: 0.9, 3: 0.9, 4: 0.7, 5: 0.5, 6: 0.3, 7: 0.2, 8: 0.1 },
     // automatic stabilizers + TARP/ARRA baseline: extra outlays, % of GDP per quarter
     outlayShock: { 1: 2.0, 2: 3.5, 3: 2.5, 4: 1.5, 5: 1.0, 6: 0.5, 7: 0.5, 8: 0.5 }
   },
-  elections: [16, 32],
-  maxTurns: 40,
-  campaignWindows: [[13, 16], [29, 32]],
+  // Presidential elections: Q4 2012 = turn 20, Q4 2016 = turn 36, then every 16 turns
+  // (52, 68, ...). Campaign windows are turns (e−3)..e → [17,20], [33,36], ...
+  // Midterms: turns 12, 28, 44, ... (every 16, offset 8).
+  electionStart: 20,
+  electionCycle: 16,
+  midtermStart: 12,
+  midtermPenalty: 5,           // pp approval penalty for holding the presidency
+  histLastTurn: 68,            // actual-history lines exist through 2024 = turn 68
   start: {
     turn: 0, year: 2008, quarter: 1,
     gdp_level: 16915.191,        // HISTORY real GDP 2007, $bn chained-2017
     priceIndex: 14715.058 / 16915.191, // nominal/real ratio 2007
     unemployment: 5.0,
-    debt_gdp: 68.0,
-    inflation: 2.4,
+    debt_gdp: 64.2,
+    inflation: 2.4,              // core CPI, %
     med_income: 74000,
     homelessness: 664,           // thousands, HUD PIT 2008
     overdoses: 36450,            // annual deaths, CDC 2008
     incarcerated: 2.31,          // millions
-    sentiment: 45,
+    // v0.3 calibration: US opens post-peak ("The Top", S 58–70): internal conflict
+    // elevated and some determinants discounted from v0.2 (documented in MATH_AND_LOGIC.md §5).
+    sentiment: 42,
     legitimacy: 55,
     pc: 100, funds: 100,
-    determinants: { education: 62, innovation: 85, competitiveness: 68, military: 90, trade: 75, output: 88, fincenter: 95, reserve_fx: 92 }
+    determinants: { education: 55, innovation: 80, competitiveness: 62, military: 85, trade: 68, output: 85, fincenter: 92, reserve_fx: 90 },
+    party: { house: 255, senate: 59, governors: 28, president: true }
   }
 };
