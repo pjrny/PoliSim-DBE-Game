@@ -1,5 +1,26 @@
 # PoliSim-DBE-Game
 
+> **⭐ Phase 1 (v0.2) is playable now → [`game/`](game/) — see [`game/README.md`](game/README.md).**
+> Single-player, turn-based (quarterly) political-economic simulator: Democracy-4-style
+> policy levers × Ray Dalio's Big Cycle determinants. Start in Q1 2008 amid the GFC,
+> govern ~10 years, face elections, and compare your simulated metrics against **real
+> US history** (FRED / HUD / CDC baseline baked in). Zero build step: open
+> `game/index.html` in a browser. `node game/test.js` runs the engine self-test.
+
+## Phase roadmap
+
+| Phase | Scope | Status |
+|---|---|---|
+| **1** | Playable single-player MVP (`game/`, static HTML/JS, local files) | ✅ done (v0.2) |
+| 2 | Cloudflare backend: Worker API + D1 (save games, sessions, leaderboards) + Pages hosting | planned |
+| 3 | Real-data pipeline: scripted pulls from FRED/World Bank/IMF plugins → committed quarterly JSON + backtest/calibration mode | planned |
+| 4 | Multiplayer & elections: 4–5 parties × 4–5 players, campaign phase, scoring | planned |
+| 5+ | Live data feeds, Monte Carlo scenarios, Odoo integration, more countries | backlog |
+
+---
+
+## Legacy v0.15 prototype (repo root)
+
 PoliSim-DBE is a browser-based political strategy + macro scenario simulator.
 This version now includes a **manifesto-driven policy input board** tailored to your listed “10% chaos” US-party ideas, plus a practical secrets workflow for local and GitHub Pages deployments.
 
