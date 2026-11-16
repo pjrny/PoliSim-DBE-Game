@@ -16,7 +16,7 @@ window.HISTORY = {
   "overdose_deaths": "CDC/NCHS National Vital Statistics",
   "incarcerated_millions": "BJS total correctional custody, approx"
  },
- "_pulled": "2026-09-19 via FRED API (igo_open_data plugin)",
+ "_pulled": "2026-09-19 via FRED API (igo_open_data plugin); 2025 rows added 2026-10-15 (FRED Q4/Dec/annual; HUD 2025 AHAR PIT; CDC/NCHS provisional)",
  "real_gdp_bn_chained2017": {
   "2004": 15670.88,
   "2005": 16136.734,
@@ -38,7 +38,8 @@ window.HISTORY = {
   "2021": 21988.737,
   "2022": 22278.345,
   "2023": 23033.78,
-  "2024": 23586.542
+  "2024": 23586.542,
+  "2025": 24125.479
  },
  "nominal_gdp_bn": {
   "2004": 12527.214,
@@ -61,7 +62,8 @@ window.HISTORY = {
   "2021": 24813.6,
   "2022": 26770.514,
   "2023": 28424.722,
-  "2024": 29825.182
+  "2024": 29825.182,
+  "2025": 31462.523
  },
  "unemployment_pct": {
   "2004": 5.542,
@@ -84,7 +86,8 @@ window.HISTORY = {
   "2021": 5.35,
   "2022": 3.65,
   "2023": 3.625,
-  "2024": 4.025
+  "2024": 4.025,
+  "2025": 4.264
  },
  "debt_to_gdp_pct": {
   "2004": 60.637,
@@ -107,7 +110,8 @@ window.HISTORY = {
   "2021": 119.359,
   "2022": 117.367,
   "2023": 119.619,
-  "2024": 121.436
+  "2024": 121.436,
+  "2025": 122.568
  },
  "payrolls_thousands": {
   "2004": 132630.0,
@@ -130,7 +134,8 @@ window.HISTORY = {
   "2021": 149816.0,
   "2022": 154342.0,
   "2023": 156857.0,
-  "2024": 158316.0
+  "2024": 158316.0,
+  "2025": 158432.0
  },
  "real_median_hh_income_usd": {
   "2004": 71700.0,
@@ -153,7 +158,8 @@ window.HISTORY = {
   "2021": 83270.0,
   "2022": 81460.0,
   "2023": 84730.0,
-  "2024": 85210.0
+  "2024": 85210.0,
+  "2025": 87460.0
  },
  "cpi_index": {
   "2004": 191.7,
@@ -176,7 +182,8 @@ window.HISTORY = {
   "2021": 280.845,
   "2022": 298.832,
   "2023": 308.741,
-  "2024": 317.604
+  "2024": 317.604,
+  "2025": 326.031
  },
  "fed_receipts_bn": {
   "2004": 2093.96,
@@ -199,7 +206,8 @@ window.HISTORY = {
   "2021": 4689.041,
   "2022": 5102.764,
   "2023": 4926.546,
-  "2024": 5313.193
+  "2024": 5313.193,
+  "2025": 5917.818
  },
  "fed_outlays_bn": {
   "2004": 2476.05,
@@ -222,7 +230,8 @@ window.HISTORY = {
   "2021": 6240.006,
   "2022": 6318.34,
   "2023": 6668.128,
-  "2024": 7247.662
+  "2024": 7247.662,
+  "2025": 7563.29
  },
  "homelessness_pit": {
   "2004": 755,
@@ -245,7 +254,8 @@ window.HISTORY = {
   "2021": 583,
   "2022": 582,
   "2023": 653,
-  "2024": 771
+  "2024": 771,
+  "2025": 745.652
  },
  "overdose_deaths": {
   "2004": 27424,
@@ -268,7 +278,8 @@ window.HISTORY = {
   "2021": 106699,
   "2022": 107941,
   "2023": 105007,
-  "2024": 79384
+  "2024": 79384,
+  "2025": 69973
  },
  "incarcerated_millions": {
   "2004": 2.14,
@@ -330,16 +341,32 @@ window.VOTER_GROUPS = {
   initial: { workers: 46, capitalists: 52, youth: 48, seniors: 50, religious: 52, immigrants: 47, technocrats: 55 }
 };
 
+/* ============================================================================
+   Act categories (v0.4) — groups the 16 POLICY_DEFS Acts into 8 shelves,
+   ported from the old build's POLICY_CATEGORIES grouping. Every Act carries
+   a `cat` field; the UI renders one collapsible rail section per category.
+   ========================================================================== */
+window.ACT_CATEGORIES = [
+  { id: 'tax',       name: 'Tax & Revenue',         color: '#f59e0b', acts: ['tax', 'tariffs', 'church'] },
+  { id: 'welfare',   name: 'Safety Net & Income',   color: '#10b981', acts: ['welfare', 'ubi'] },
+  { id: 'housing',   name: 'Housing & Land',        color: '#8b5cf6', acts: ['housing', 'lvt'] },
+  { id: 'education', name: 'Education & Workforce', color: '#3b82f6', acts: ['education', 'immigration'] },
+  { id: 'health',    name: 'Health & Vice',         color: '#ef4444', acts: ['healthcare', 'drug'] },
+  { id: 'defense',   name: 'Defense & R&D',         color: '#64748b', acts: ['military', 'infra'] },
+  { id: 'justice',   name: 'Justice & Rule of Law', color: '#a16207', acts: ['law'] },
+  { id: 'democracy', name: 'Democracy & Media',     color: '#06b6d4', acts: ['media', 'democracy'] }
+];
+
 window.POLICY_DEFS = [
   {
-    id: 'tax', name: 'Tax Reform Act', kind: 'slider', min: 0, max: 100, step: 10, unit: '%',
+    id: 'tax', name: 'Tax Reform Act', kind: 'slider', min: 0, max: 100, step: 10, unit: '%', cat: 'tax',
     def: 0, lag: 2, pcPerStep: 2, minPc: 5, maxPc: 25,
     desc: 'Share of federal income tax replaced by a national VAT (0–100%).',
     cost: 'Revenue-efficient, but regressive unless Welfare ≥ Expanded.',
     expected: 'Primary: +0.45% of GDP revenue per 10 pts. Secondary: small competitiveness gain; Workers approval drifts down if VAT > 30% without transfers. Lag 2 turns.'
   },
   {
-    id: 'military', name: 'Military Reallocation Act', kind: 'select', def: 'hold', lag: 2,
+    id: 'military', name: 'Military Reallocation Act', kind: 'select', def: 'hold', lag: 2, cat: 'defense',
     desc: 'Rebalance the defense budget; freed funds are reallocated — spend-neutral — to R&D, health and cyber.',
     cost: 'Spend-neutral reallocation: outlays ~unchanged (≤ −0.05% GDP admin saving), demand boosted by higher-multiplier spending.',
     expected: 'Primary: demand +0.15/+0.3 pp on reallocation (ΔY ≈ (m_new−m_def)·ΔG, spend constant). Secondary: innovation ↑, military ↓. Lag 2 turns.',
@@ -351,7 +378,7 @@ window.POLICY_DEFS = [
     ]
   },
   {
-    id: 'drug', name: 'Drug Policy Act', kind: 'select', def: 'prohibited', lag: 6,
+    id: 'drug', name: 'Drug Policy Act', kind: 'select', def: 'prohibited', lag: 6, cat: 'health',
     desc: 'Set the federal posture on narcotics, from prohibition to a legal, taxed market.',
     cost: 'Legal+Taxed adds ~0.3% of GDP in revenue; legal-status effects are immediate, treatment effects lag ~6 turns.',
     expected: 'Primary: overdose & incarceration trajectories — cumulative overdose reduction CAPPED at −15% vs enactment (needs Healthcare ≥ Public option for treatment capacity; otherwise −7%); Decriminalized caps at −7%. Secondary: Religious approval −. Lag 6 turns.',
@@ -362,7 +389,7 @@ window.POLICY_DEFS = [
     ]
   },
   {
-    id: 'church', name: 'Church Taxation Act', kind: 'select', def: 'exempt', lag: 1,
+    id: 'church', name: 'Church Taxation Act', kind: 'select', def: 'exempt', lag: 1, cat: 'tax',
     desc: 'Decide whether religious organizations keep their tax exemption.',
     cost: 'Full taxation adds ~0.35% of GDP in revenue ($70–80bn/yr gross anchor, discounted for behavioral response).',
     expected: 'Primary: revenue gain (0.07% property-only, 0.35% full). Secondary: Religious approval −−, Technocrats/Youth +. Lag 1 turn.',
@@ -373,7 +400,7 @@ window.POLICY_DEFS = [
     ]
   },
   {
-    id: 'housing', name: 'Housing Act', kind: 'select', def: 'statusquo', lag: 2,
+    id: 'housing', name: 'Housing Act', kind: 'select', def: 'statusquo', lag: 2, cat: 'housing',
     desc: 'Attack the housing cost crisis via supply, direct funding, or radical market intervention.',
     cost: 'Housing First costs ~0.25% of GDP; rent bans cause a supply collapse that outlasts the ban itself.',
     expected: 'Primary: homelessness trajectory. Zoning reform lags 8 turns (permits → construction). A rental ban shocks homelessness +6%/qtr for 4 turns, then sustained rent pressure +1.5 (supply collapse persists). Housing First clearly wins long-run. Lag 2 turns.',
@@ -385,7 +412,7 @@ window.POLICY_DEFS = [
     ]
   },
   {
-    id: 'immigration', name: 'Immigration Act', kind: 'select', def: 'statusquo', lag: 2,
+    id: 'immigration', name: 'Immigration Act', kind: 'select', def: 'statusquo', lag: 2, cat: 'education',
     desc: 'Set the stance on immigration flows and enforcement.',
     cost: 'Reform expands labor supply, trade and innovation.',
     expected: 'Primary: trade & competitiveness determinants. Secondary: small demand boost; Immigrant approval ±±. Lag 2 turns.',
@@ -397,7 +424,7 @@ window.POLICY_DEFS = [
     ]
   },
   {
-    id: 'welfare', name: 'Welfare Act', kind: 'select', def: 'statusquo', lag: 2,
+    id: 'welfare', name: 'Welfare Act', kind: 'select', def: 'statusquo', lag: 2, cat: 'welfare',
     desc: 'Design the social safety net, from status quo to a Universal Basic Income.',
     cost: 'Expanded +0.8%, cash transfers +1.2%, UBI +3.0% of GDP outlays.',
     expected: 'Primary: demand stimulus & median-income support (workers_bonus). Secondary: homelessness ↓; Capitalists approval −. Lag 2 turns.',
@@ -409,7 +436,7 @@ window.POLICY_DEFS = [
     ]
   },
   {
-    id: 'education', name: 'Education Act', kind: 'select', def: 'statusquo', lag: 8,
+    id: 'education', name: 'Education Act', kind: 'select', def: 'statusquo', lag: 8, cat: 'education',
     desc: 'Invest in human capital: vocational tracks, year-round schooling, or full reform.',
     cost: 'Vocational +0.3%, year-round +0.5%, full reform +1.0% of GDP outlays.',
     expected: 'Primary: education determinant +0.3 to +0.7/turn. Secondary: innovation ↑ on full reform; Youth & Workers approval +. Lag 8 turns (human capital is slow).',
@@ -421,7 +448,7 @@ window.POLICY_DEFS = [
     ]
   },
   {
-    id: 'tariffs', name: 'Tariff Act', kind: 'slider', min: 0, max: 25, step: 1, unit: '%',
+    id: 'tariffs', name: 'Tariff Act', kind: 'slider', min: 0, max: 25, step: 1, unit: '%', cat: 'tax',
     def: 0, lag: 1, pcPerStep: 1, minPc: 5, maxPc: 25,
     desc: 'Average import tariff rate (0–25%).',
     cost: 'Revenue saturates above ~10% (Laffer: rev/pt = 0.35% × 10/max(10, rate)); drags growth and competitiveness.',
@@ -429,7 +456,7 @@ window.POLICY_DEFS = [
     groupDriftPerPt: { workers: 0.03, capitalists: -0.04, technocrats: -0.02 }
   },
   {
-    id: 'healthcare', name: 'Healthcare Act', kind: 'select', def: 'statusquo', lag: 3,
+    id: 'healthcare', name: 'Healthcare Act', kind: 'select', def: 'statusquo', lag: 3, cat: 'health',
     desc: 'Expand public health coverage — a public option or universal system. Also gates drug-treatment capacity.',
     cost: 'Public option +0.7%, universal +2.2% of GDP outlays.',
     expected: 'Primary: treatment funding cuts overdoses −1.5%/qtr and unlocks the full −15% drug-legalization cap. Secondary: Seniors & Workers approval ++. Lag 3 turns.',
@@ -440,7 +467,7 @@ window.POLICY_DEFS = [
     ]
   },
   {
-    id: 'law', name: 'Law Enforcement Act', kind: 'select', def: 'statusquo', lag: 2,
+    id: 'law', name: 'Law Enforcement Act', kind: 'select', def: 'statusquo', lag: 2, cat: 'justice',
     desc: 'Set policing and sentencing doctrine.',
     cost: 'Tough-on-crime grows incarceration ~+1%/qtr; reforms shrink it.',
     expected: 'Primary: incarceration trajectory. Secondary: group approvals (Religious/Seniors vs Youth/Immigrants). Lag 2 turns.',
@@ -452,7 +479,7 @@ window.POLICY_DEFS = [
     ]
   },
   {
-    id: 'infra', name: 'Infrastructure & R&D Act', kind: 'slider', min: 0, max: 3, step: 0.25, unit: '% GDP',
+    id: 'infra', name: 'Infrastructure & R&D Act', kind: 'slider', min: 0, max: 3, step: 0.25, unit: '% GDP', cat: 'defense',
     def: 0, lag: 2, pcPerStep: 2, minPc: 5, maxPc: 25,
     desc: 'Extra federal investment in infrastructure and R&D, as % of GDP.',
     cost: 'Each 0.25% of GDP costs that much in outlays; powerful crisis stimulus.',
@@ -461,7 +488,7 @@ window.POLICY_DEFS = [
   },
   /* ---------------- v0.3 NEW ACTS ---------------- */
   {
-    id: 'ubi', name: 'Freedom Dividend Act', kind: 'select', def: 'off', lag: 2,
+    id: 'ubi', name: 'Freedom Dividend Act', kind: 'select', def: 'off', lag: 2, cat: 'welfare',
     desc: '$1,000/month universal dividend, paired with a VAT that offsets its revenue line.',
     cost: 'Outlays +2.9% of GDP; revenue ≈ neutral by construction (paired VAT assumption).',
     expected: 'Primary: demand +1.2 pp; homelessness −2.0%/qtr, cumulative reduction capped at −25% vs enactment. Secondary: Youth/Workers/Immigrants up, Capitalists down. Lag 2 turns.',
@@ -471,7 +498,7 @@ window.POLICY_DEFS = [
     ]
   },
   {
-    id: 'lvt', name: 'Land Value Tax Act', kind: 'select', def: 'off', lag: 4,
+    id: 'lvt', name: 'Land Value Tax Act', kind: 'select', def: 'off', lag: 4, cat: 'housing',
     desc: 'Tax the unimproved value of land — no disincentive to build, strong incentive to use land.',
     cost: 'Adds ~0.4% of GDP in revenue; landowners and capital approve little.',
     expected: 'Primary: rent pressure −1, housing supply up (homelessness −0.4%/qtr). Secondary: competitiveness +0.15/turn (deadweight-loss-free revenue). Lag 4 turns.',
@@ -481,7 +508,7 @@ window.POLICY_DEFS = [
     ]
   },
   {
-    id: 'media', name: 'Public Journalism Fund Act', kind: 'select', def: 'off', lag: 2,
+    id: 'media', name: 'Public Journalism Fund Act', kind: 'select', def: 'off', lag: 2, cat: 'democracy',
     desc: 'Independent fund supporting local and investigative journalism.',
     cost: 'Tiny outlay (+0.03% of GDP); large civic returns.',
     expected: 'Primary: legitimacy +0.6/turn, sentiment +0.4/turn (internal conflict ↓ via sentiment). Secondary: Technocrats approval +. Lag 2 turns.',
@@ -491,7 +518,7 @@ window.POLICY_DEFS = [
     ]
   },
   {
-    id: 'democracy', name: 'Democracy Dollars + RCV Act', kind: 'select', def: 'off', lag: 2,
+    id: 'democracy', name: 'Democracy Dollars + RCV Act', kind: 'select', def: 'off', lag: 2, cat: 'democracy',
     desc: 'Citizen campaign vouchers (Democracy Dollars) plus ranked-choice voting.',
     cost: 'Party funds income −10% (small-donor vouchers crowd out big money); legitimacy and participation rise.',
     expected: 'Primary: PC regeneration +2/turn (broader mandate), legitimacy +0.5/turn, conflict ↓ via sentiment +0.3/turn. Secondary: Technocrats/Youth +, Capitalists −. Lag 2 turns.',
@@ -506,21 +533,120 @@ window.POLICY_DEFS = [
    Federal budget categories — FY2008 approximate outlays ($bn, NIPA-ish).
    Total ≈ $2,991bn ≈ 20.5% of 2008 nominal GDP ($14,608bn).
    fx = effects per +10% deviation from baseline funding (mult 1.0).
+
+   v0.4 SUB-DEPARTMENTS: categories with a `sub` array expose editable child
+   lines underneath the parent (accordion in the Budget tab).
+     - Child slider: 0–200% of its own base_bn; costs 1 PC per 10% moved (min 2).
+     - Parent multiplier = base-weighted mean of surviving children, so child
+       edits flow straight into the parent total (and the whole budget).
+     - The parent slider scales all children in lockstep.
+     - Deleting a child costs 5 PC: the parent fx shrinks by the child's
+       fxShare (Σ fxShare = 1 per category) and backlash × fxShare hits.
+     - Child `fx` (where present) is a child-only additive effect per +10%
+       deviation of that child, layered on top of the parent's fx.
    ========================================================================== */
 window.BUDGET_CATS = [
-  { id: 'defense',         name: 'Defense',                base_bn: 616, fx: { demand: 0.03, det: { military: 0.04 }, groups: { religious: 0.1, technocrats: -0.05 } }, backlash: { religious: -8, workers: -6 } },
-  { id: 'social_security', name: 'Social Security',        base_bn: 615, fx: { demand: 0.02, groups: { seniors: 0.3 } }, backlash: { seniors: -25, workers: -8 } },
-  { id: 'medicare',        name: 'Medicare',               base_bn: 390, fx: { odPct: -0.05, groups: { seniors: 0.25 } }, backlash: { seniors: -22 } },
-  { id: 'medicaid',        name: 'Medicaid',               base_bn: 201, fx: { odPct: -0.08, homelessPct: -0.05, groups: { workers: 0.1 } }, backlash: { workers: -12, immigrants: -8 } },
-  { id: 'income_security', name: 'Income Security',        base_bn: 261, fx: { demand: 0.03, homelessPct: -0.08, groups: { workers: 0.15 } }, backlash: { workers: -14, youth: -6 } },
-  { id: 'health',          name: 'Health (other)',         base_bn: 265, fx: { odPct: -0.06, groups: { seniors: 0.05 } }, backlash: { seniors: -8, workers: -6 } },
-  { id: 'veterans',        name: 'Veterans',               base_bn: 47,  fx: { groups: { religious: 0.1, workers: 0.05 } }, backlash: { religious: -10, workers: -6 } },
-  { id: 'education',       name: 'Education',              base_bn: 57,  fx: { det: { education: 0.05 }, groups: { youth: 0.1 } }, backlash: { youth: -12, workers: -5 } },
-  { id: 'transport',       name: 'Transportation',         base_bn: 64,  fx: { demand: 0.025, det: { competitiveness: 0.02 } }, backlash: { workers: -6 } },
-  { id: 'environment',     name: 'Environment & Energy',   base_bn: 30,  fx: { det: { competitiveness: 0.01 }, groups: { youth: 0.08, capitalists: -0.05 } }, backlash: { youth: -8 } },
-  { id: 'international',   name: 'International Affairs',  base_bn: 29,  fx: { det: { trade: 0.02 } }, backlash: { technocrats: -5, religious: -3 } },
-  { id: 'science',         name: 'Science & Space',        base_bn: 25,  fx: { det: { innovation: 0.06 }, groups: { technocrats: 0.1 } }, backlash: { technocrats: -10, youth: -4 } },
-  { id: 'justice',         name: 'Justice',                base_bn: 48,  fx: { incarcPct: 0.05, groups: { religious: 0.03 } }, backlash: { religious: -6, seniors: -4 } },
+  { id: 'defense',         name: 'Defense',                base_bn: 616,
+    sub: [ // FY2008 split per DoD Comptroller/SIPRI: 139+245+117+75+40 = 616
+      { id: 'personnel',   name: 'Military Personnel',       base_bn: 139, fxShare: 0.23 },
+      { id: 'om',          name: 'Operations & Maintenance', base_bn: 245, fxShare: 0.40 },
+      { id: 'procurement', name: 'Procurement',              base_bn: 117, fxShare: 0.19 },
+      { id: 'rdte',        name: 'R&D / Test & Evaluation',  base_bn: 75,  fxShare: 0.12, fx: { det: { innovation: 0.02 } } },
+      { id: 'other',       name: 'Mil. construction & atomic defense (DOE)', base_bn: 40, fxShare: 0.06 }
+    ],
+    fx: { demand: 0.03, det: { military: 0.04 }, groups: { religious: 0.1, technocrats: -0.05 } }, backlash: { religious: -8, workers: -6 } },
+  { id: 'social_security', name: 'Social Security',        base_bn: 615,
+    sub: [ // 2009 Trustees Report (CY2008): OASI 509.1 + DI 106.3 ≈ 615
+      { id: 'oasi', name: 'Old-Age & Survivors (OASI)', base_bn: 509, fxShare: 0.83 },
+      { id: 'di',   name: 'Disability (DI)',            base_bn: 106, fxShare: 0.17 }
+    ],
+    fx: { demand: 0.02, groups: { seniors: 0.3 } }, backlash: { seniors: -25, workers: -8 } },
+  { id: 'medicare',        name: 'Medicare',               base_bn: 390,
+    sub: [ // gross part shares (A 49% / B 39.6% / D 9.9%) applied to net outlays 390
+      { id: 'partA', name: 'Part A (hospital)',       base_bn: 191, fxShare: 0.49 },
+      { id: 'partB', name: 'Part B (physician/drug)', base_bn: 154, fxShare: 0.39 },
+      { id: 'partD', name: 'Part D (Rx coverage)',    base_bn: 39,  fxShare: 0.10 },
+      { id: 'admin', name: 'Administration',          base_bn: 6,   fxShare: 0.02 }
+    ],
+    fx: { odPct: -0.05, groups: { seniors: 0.25 } }, backlash: { seniors: -22 } },
+  { id: 'medicaid',        name: 'Medicaid',               base_bn: 201,
+    sub: [
+      { id: 'payments', name: 'Provider payments',   base_bn: 190, fxShare: 0.95 },
+      { id: 'admin',    name: 'Administration',      base_bn: 11,  fxShare: 0.05 }
+    ],
+    fx: { odPct: -0.08, homelessPct: -0.05, groups: { workers: 0.1 } }, backlash: { workers: -12, immigrants: -8 } },
+  { id: 'income_security', name: 'Income Security',        base_bn: 261,
+    sub: [
+      { id: 'snap',    name: 'SNAP (food stamps)',     base_bn: 38, fxShare: 0.15, fx: { demand: 0.02 } },
+      { id: 'ssi',     name: 'SSI (disability income)', base_bn: 34, fxShare: 0.13 },
+      { id: 'eitc',    name: 'EITC / CTC credits',     base_bn: 55, fxShare: 0.21 },
+      { id: 'ui',      name: 'Unemployment insurance', base_bn: 40, fxShare: 0.15, fx: { demand: 0.02 } },
+      { id: 'housing', name: 'Housing assistance',     base_bn: 38, fxShare: 0.15 },
+      { id: 'other',   name: 'Other income security',  base_bn: 56, fxShare: 0.21 }
+    ],
+    fx: { demand: 0.03, homelessPct: -0.08, groups: { workers: 0.15 } }, backlash: { workers: -14, youth: -6 } },
+  { id: 'health',          name: 'Health (other)',         base_bn: 265,
+    sub: [ // stylized: NIH/CDC verified; "other" is the game's residual plug so the
+           // parent stays consistent with the rest of this NIPA-ish budget
+      { id: 'nih',   name: 'NIH research',          base_bn: 29,  fxShare: 0.11 },
+      { id: 'cdc',   name: 'CDC & public health',   base_bn: 6,   fxShare: 0.02, fx: { odPct: -0.02 } },
+      { id: 'other', name: 'Other health programs', base_bn: 230, fxShare: 0.87 }
+    ],
+    fx: { odPct: -0.06, groups: { seniors: 0.05 } }, backlash: { seniors: -8, workers: -6 } },
+  { id: 'veterans',        name: 'Veterans',               base_bn: 47,
+    sub: [
+      { id: 'va_health', name: 'VA health care',    base_bn: 34, fxShare: 0.72 },
+      { id: 'benefits',  name: 'Benefits & memorial', base_bn: 13, fxShare: 0.28 }
+    ],
+    fx: { groups: { religious: 0.1, workers: 0.05 } }, backlash: { religious: -10, workers: -6 } },
+  { id: 'education',       name: 'Education',              base_bn: 57,
+    sub: [ // Dept. of Ed FY2008 ≈ 58.6 outlays: Pell 18, K-12/Title I/IDEA 31, rest 8
+      { id: 'pell',  name: 'Pell grants & student aid', base_bn: 18, fxShare: 0.32 },
+      { id: 'k12',   name: 'K-12 & school programs',    base_bn: 31, fxShare: 0.54, fx: { det: { education: 0.03 } } },
+      { id: 'other', name: 'Loans, adult ed & admin',   base_bn: 8,  fxShare: 0.14 }
+    ],
+    fx: { det: { education: 0.05 }, groups: { youth: 0.1 } }, backlash: { youth: -12, workers: -5 } },
+  { id: 'transport',       name: 'Transportation',         base_bn: 64,
+    sub: [ // function 400 = 64.2: highways 41, transit 9, aviation 10, rail/water 4
+      { id: 'highways', name: 'Highways & bridges',     base_bn: 41, fxShare: 0.64 },
+      { id: 'transit',  name: 'Mass transit',           base_bn: 9,  fxShare: 0.14 },
+      { id: 'aviation', name: 'Aviation (FAA/AIP)',     base_bn: 10, fxShare: 0.16 },
+      { id: 'rail',     name: 'Rail & water (Amtrak/Corps)', base_bn: 4, fxShare: 0.06 }
+    ],
+    fx: { demand: 0.025, det: { competitiveness: 0.02 } }, backlash: { workers: -6 } },
+  { id: 'environment',     name: 'Environment & Energy',   base_bn: 30,
+    sub: [ // function 270 gross structure: EPA 8, conservation 9, water 6, DOE energy 4, other 3
+      { id: 'epa',          name: 'EPA programs',          base_bn: 8, fxShare: 0.27 },
+      { id: 'conservation', name: 'Conservation & parks',  base_bn: 9, fxShare: 0.30 },
+      { id: 'water',        name: 'Water resources',       base_bn: 6, fxShare: 0.20 },
+      { id: 'energy',       name: 'DOE energy programs',   base_bn: 4, fxShare: 0.13 },
+      { id: 'other',        name: 'Other environment',     base_bn: 3, fxShare: 0.10 }
+    ],
+    fx: { det: { competitiveness: 0.01 }, groups: { youth: 0.08, capitalists: -0.05 } }, backlash: { youth: -8 } },
+  { id: 'international',   name: 'International Affairs',  base_bn: 29,
+    sub: [ // net 29 = State/UN 10 + aid 11 + security 8; international financial
+           // program receipts (−3) folded into the lines to keep bases editable
+      { id: 'state',   name: 'State Dept & diplomacy', base_bn: 10, fxShare: 0.35 },
+      { id: 'aid',     name: 'Humanitarian & dev aid', base_bn: 11, fxShare: 0.37 },
+      { id: 'security',name: 'Security assistance',    base_bn: 8,  fxShare: 0.28 }
+    ],
+    fx: { det: { trade: 0.02 } }, backlash: { technocrats: -5, religious: -3 } },
+  { id: 'science',         name: 'Science & Space',        base_bn: 25,
+    sub: [ // function 250 = 25.5: NASA 15.5, NSF 5.9, DOE Office of Science 3.6
+      { id: 'nasa',       name: 'NASA',                 base_bn: 15.5, fxShare: 0.62 },
+      { id: 'nsf',        name: 'NSF research',         base_bn: 5.9,  fxShare: 0.24, fx: { det: { innovation: 0.02 } } },
+      { id: 'doe_science',name: 'DOE Office of Science', base_bn: 3.6, fxShare: 0.14 }
+    ],
+    fx: { det: { innovation: 0.06 }, groups: { technocrats: 0.1 } }, backlash: { technocrats: -10, youth: -4 } },
+  { id: 'justice',         name: 'Justice',                base_bn: 48,
+    sub: [ // function 750 ≈ 48: FBI 7, BOP 6, courts/litigative 13, grants 4, other LE 18
+      { id: 'fbi',     name: 'FBI & federal policing', base_bn: 7,  fxShare: 0.15 },
+      { id: 'bop',     name: 'Bureau of Prisons',      base_bn: 6,  fxShare: 0.12, fx: { incarcPct: -0.03 } },
+      { id: 'courts',  name: 'Courts & litigative',    base_bn: 13, fxShare: 0.27 },
+      { id: 'grants',  name: 'State & local grants',   base_bn: 4,  fxShare: 0.08 },
+      { id: 'other',   name: 'Other LE (DEA/ATF/marshals)', base_bn: 18, fxShare: 0.38 }
+    ],
+    fx: { incarcPct: 0.05, groups: { religious: 0.03 } }, backlash: { religious: -6, seniors: -4 } },
   { id: 'interest',        name: 'Net Interest (auto)',    base_bn: 253, locked: true, fx: {}, backlash: {} },
   { id: 'other',           name: 'Other / Adjustments',    base_bn: 90,  fx: {}, backlash: { technocrats: -4 } }
 ];
@@ -581,7 +707,7 @@ window.EVENTS = {
   electionCycle: 16,
   midtermStart: 12,
   midtermPenalty: 5,           // pp approval penalty for holding the presidency
-  histLastTurn: 68,            // actual-history lines exist through 2024 = turn 68
+  histLastTurn: 72,            // actual-history lines exist through 2025 = turn 72
   start: {
     turn: 0, year: 2008, quarter: 1,
     gdp_level: 16915.191,        // HISTORY real GDP 2007, $bn chained-2017
@@ -600,5 +726,79 @@ window.EVENTS = {
     pc: 100, funds: 100,
     determinants: { education: 55, innovation: 80, competitiveness: 62, military: 85, trade: 68, output: 85, fincenter: 92, reserve_fx: 90 },
     party: { house: 255, senate: 59, governors: 28, president: true }
+  },
+  // v0.4 second crisis: "The Realignment". SIM track is the counterfactual —
+  // it runs on potential-growth baseline (no scripted shocks) so the effect of
+  // the player's actions is visible in isolation. The ACTUAL track (real
+  // history 2017–2025 + Project-2025-flavored projection 2026+) is scripted
+  // per-turn in js/scenario_2016.js and only nudged by Influence spends.
+  realign: {
+    name: 'The Realignment',
+    banner: '🗽 THE REALIGNMENT — a new party is born with a handful of seats. SIM actions show what a governing mandate would do; ACTUAL actions are small nudges by a tiny caucus. Actual history plays out underneath: Trump → Biden → Trump, then the Project 2025 horizon.',
+    shocks: {},        // SIM track: no crisis shocks, pure counterfactual
+    unempShock: {},
+    outlayShock: {}
+  }
+};
+
+/* ============================================================================
+   Scenarios (v0.4). Pick one at New Game.
+   gfc2008      — original v0.2/v0.3 crisis: you command the majority party
+                  from Q1 2008 through the GFC.
+   realign2016  — "The Realignment": dual-track play from Q4 2016.
+                    SIM    — political capital sized to the shadow caucus of the
+                             leading party; full-strength actions drive the
+                             counterfactual economy.
+                    ACTUAL — your real 5-seat caucus spends Influence (small
+                             pool) for weak nudges to the scripted actual track.
+   Clock: turn 1 = Q1 of `clockYear` (for realign2016 the opening board is
+   labeled Q4 2016, then the running clock starts Q1 2017 at inauguration).
+   ========================================================================== */
+window.SCENARIOS = {
+  gfc2008: {
+    id: 'gfc2008', name: 'Global Financial Crisis', event: 'gfc',
+    tagline: 'Q1 2008. The bubble has burst and you hold the gavel. Guide the republic through the crash and its aftermath.',
+    dualTrack: false,
+    start: null,                 // = EVENTS.start
+    clockYear: 2008,             // turn 1 = Q1 2008
+    histLastTurn: 72,            // actual-history overlay through Q4 2025
+    electionStart: 20,           // Q4 2012, then every 16
+    midtermStart: 12,            // Q4 2010, then every 16
+    electionCycle: 16,
+    pollingActual: null          // polling chart = your approval only
+  },
+  realign2016: {
+    id: 'realign2016', name: 'The Realignment', event: 'realign',
+    tagline: 'Q4 2016. A new party rises from the wreckage of the old order — five House seats, one Senate seat, three governors, and $300M. America\'s real timeline plays out underneath your counterfactual.',
+    dualTrack: true,
+    start: {
+      turn: 0, year: 2016, quarter: 4,
+      clockYear: 2017,           // turn 1 = Q1 2017 (inauguration quarter)
+      gdp_level: 19304.352,      // HISTORY real GDP 2016, $bn chained-2017 (Q4)
+      priceIndex: 19089.379 / 19304.352, // nominal/real ratio 2016
+      unemployment: 4.875,       // HISTORY UNRATE 2016 avg
+      debt_gdp: 104.6,           // gross federal debt ≈ % GDP, end-FY2016
+      inflation: 2.2,            // core CPI 2016
+      med_income: 77230,         // HISTORY real median HH income 2016
+      homelessness: 550,         // thousands, HUD PIT 2016
+      overdoses: 63632,          // annual deaths, CDC 2016
+      incarcerated: 2.16,        // millions, BJS 2016
+      sentiment: 48,             // post-2016: polarized, conflict elevated
+      legitimacy: 58,
+      interest: { base: 2.3, knee: 100, slope: 0.04 }, // era-calibrated: 2016 net interest ≈2.6% of GDP at start debt
+      pc: 100,                   // SIM-track political capital (shadow-party sized)
+      funds: 300,                // $300M party war chest
+      influence: 10,             // ACTUAL-track nudge points
+      influencePerTurn: 5,
+      influenceCap: 25,
+      determinants: { education: 57, innovation: 82, competitiveness: 64, military: 80, trade: 72, output: 82, fincenter: 90, reserve_fx: 88 },
+      party: { house: 5, senate: 1, governors: 3, president: false },   // your real caucus
+      shadowParty: { house: 240, senate: 55, governors: 20, president: true } // SIM-track mandate, sized to the leading party
+    },
+    histLastTurn: 36,            // Q4 2025 on the scenario clock (turn 1 = Q1 2017)
+    electionStart: 16,           // Q4 2020, then every 16
+    midtermStart: 8,             // Q4 2018, then every 16
+    electionCycle: 16,
+    pollingActual: ['republican', 'democrat']  // polling chart: R & D actual + yours
   }
 };
