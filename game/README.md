@@ -1,4 +1,10 @@
-# PoliSim-DBE — Phase 2 (v0.3)
+# PoliSim-DBE — v0.4
+
+**v0.4 adds:** 8 Act categories · budget sub-departments (FY2008 researched splits, per-child sliders, delete/restore) · **The Realignment (2016)** dual-track scenario — America's real 2017–2025 timeline plays out under your counterfactual, with a tiny real caucus you nudge via **Influence** · researched **Acts-in-Force** evidence panels (8 Acts, 1935→2025) · **Act repeal** (effects unwind in reverse) · scenario picker + era-clocked charts, 3-line polling, scripted 2017–2025 news feed, glossary for all new mechanics.
+
+---
+*Phase 2 (v0.3) notes follow.*
+# v0.3
 
 A single-player, turn-based political-economic education simulation:
 **Democracy 4-style governance × Ray Dalio's "Big Cycle" country lifecycle.**
