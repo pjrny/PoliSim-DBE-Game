@@ -287,6 +287,90 @@ approximated by a single 6-turn lag). One-time approval deltas are queued and re
 `1/lag` slices. Every turn pushes a ledger entry — the Report tab renders it as the
 cause→effect log, and CSV/JSON exports contain the full per-turn snapshot history.
 
+## v0.5 mechanics
+
+### Act ↔ Budget redundancy links (WS1)
+Each link `(act, option, target, coeff, eff)` gives a redundancy ratio
+`R = coeff × ramp(option)` per turn. When the linked budget line is cut, its
+group backlash and demand loss are absorbed: `fx_absorbed = R × eff × 0.5`
+(`groupFxAbsorptionMult`), and the delete cost discounts to
+`PC × (1 − 0.8·R)` (min 1 PC). Badges: full ≥ 0.5, partial ≥ 0.15, inverse
+(coeff < 0) means the Act *raises* the line's importance. Repeal/stall while
+the line is cut triggers a snapback cushion: the uncovered need (R < 0.15)
+re-inflates over `snapbackTurns = 4`. Overlapping double coverage
+(e.g. UBI + welfare UBI) pays a 0.5 demand-fx penalty on the overlap.
+
+### Real-world statement events (WS2)
+Config: `js/realworld_events.js` (`spec_realworld_events.md`). Effects are
+SIM-track only — statements never move scripted ACTUAL metrics, scripted
+polling, demand, outlays or growth. Bloc deltas enter `st.groupQueue`
+(half this turn, half next, `groupSpreadTurns = 2`); sentiment/legitimacy
+enter a 2-turn decaying `stmtFx` queue (sentiment is recomputed from
+fundamentals each turn, so statements ride the channel, never write it).
+One-turn response window: anything pending at advance is auto-resolved as
+`no_comment`. Max 2 popups/turn, major tier first; each event fires once.
+
+### Political Compass & cycle stage (WS4)
+Reverse-engineered from the Filteries Political Simulator spec
+(`spec_compass_integration.md`). 8 axes: STA, LFT, REG, OWN, HSP, AUT, TRD,
+NTV (0–100). Baseline = US archetype 8 (STA 45, LFT 38, REG 45, OWN 12,
+AUT 30, TRD 45, NTV 50, HSP 50). Acts shift axes via `COMPASS_ACT_DELTAS`
+(per-unit slider deltas × ramp, with the C3 VAT×transfers interaction:
+LFT −3 alone, +2 paired). Budget deviations shift ±8 max per
+`COMPASS_BUDGET_DELTAS` (+10% deviation = listed unit, capped). HSP is a
+fiscal bridge: federal outlays + 14.5% state/local offset, mapped
+5%→0 … 65%→100 of revenue, anchored 35%→50. Labels: 4 gated classifiers
+(structure / governing / economic / social). Cycle stage: 4-stage classifier
+over the power-index mean, annualized trend, running debt/conflict peaks,
+and 18 Dalio markers; provisional below 12 turns; sub-cycle gauges for debt,
+internal order, external order.
+
+### Dimensions Beyond Energy (WS6, scenario dbe2030)
+Read-only inspiration: github.com/pjrny/DBE_V0 (dimensions-beyond-energy).
+The DBE device is fictional; every macro number is our calibration, chained
+to the realign2016 ACTUAL projection end (turn 56 ≈ Q4 2030: GDP level
+25,974.7 chained-2017 $bn, debt 129.1% GDP, determinants as listed in
+`js/data.js`). Shock calendar (own calibration): 2030 capex boom
+(+1.5/+1.2/+0.8 pp), 2030Q4–2031 stranded-asset credit stress (−1.8 pp peak),
+2033 Q-Day crypto panic (−1.6 pp peak, `outlayShock` 1.0% GDP for the
+post-quantum migration), 2034–35 scale-up dividend, 2038 commercial-viability
+boom (+1.5 pp). New engine channel: `EVENTS.dbe.detShock` applies direct
+determinant hits per turn (Q-Day: reserve_fx −4, fincenter −2). The repo's
+"stabilized money markets" framing has no in-repo support — its own
+quantum-crypto material implies destabilization — so the money-market beat
+is modeled as a crisis. The repo's "2038 presidency" vignette is re-dated:
+breakeven in 2030, commercial viability as the 2038 payoff (turn 33).
+`keepPlayingOnLoss`: election loss costs legitimacy −8 and the presidency
+but the transition arc continues (next election is a comeback chance).
+
+### Custom Act studio (WS5)
+The "Create your own Act" studio (Acts tab → 🛠️) registers player-authored Acts
+into the same `POLICY_DEFS` array the engine and rail already iterate
+(`ENGINE.registerCustomAct(def)` — schema-validated, duplicate ids rejected),
+so a custom Act behaves exactly like a built-in one: PC cost, upkeep, lag,
+ramp, repeal, voter-group and determinant effects. Games started after
+registration init `st.pol` automatically; mid-game registration patches the
+current game's `st.pol[id]` with the createGame shape. Every custom Act is a
+`kind:'select'` def with three options (off / Moderate ×0.6 / Ambitious ×1.2 of
+the designer's base settings) priced by one **balance formula**:
+
+    weight  = |demand| + Σ|det|/2 + Σ|groups|/4 + |odPct|/2 + |homelessPct|/2
+              + |incarcPct|/2 + |outlay|×0.5
+    pc      = clamp(round(6 + 3×weight), 8, 40)
+    upkeep  = { perTurn: clamp(round(pc/5), 1, 8), turns: clamp(round(4+weight), 4, 16) }
+    lag     = clamp(round(2 + weight/3), 2, 8)
+
+Caps: any single |group| delta ≤ 10, any single |det| delta ≤ 1.0/turn
+(applied to the final, scaled option values). The studio's drag-drop/paste
+**pre-fill is an honest keyword heuristic, not an AI analysis**: it counts
+terms against a small hand-authored lexicon (`ACT_STUDIO.LEXICON`), guesses a
+title/category and suggests modest lever values; every number is the player's
+to calibrate, and the six bundled template Acts carry a `sourceNote` saying so.
+Custom defs persist in `localStorage["polisim_custom_acts"]`, are re-registered
+on page load, and can be shared as JSON (Download/Load on the Enact step).
+Deletion removes the def from `POLICY_DEFS`/`POLICY_MAP`/localStorage and is
+blocked while the Act is in force mid-game.
+
 ## Source references
 
 - **Okun's law** — Okun (1962); Ball, Leigh & Loungani, IMF WP/13/10 (2013).

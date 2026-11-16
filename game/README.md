@@ -1,4 +1,16 @@
-# PoliSim-DBE — v0.4
+# PoliSim-DBE — v0.5
+
+**v0.5 adds:**
+- **Act ↔ Budget balance** — every Act is wired to the budget lines it absorbs or raises: redundancy badges (full/part/inverse), Consolidate buttons, one-click cut suggestions, and snapback cushions if you repeal an Act whose budget line you deleted (UBI enacted ⇒ Social Security/welfare cuts get cheap; universal healthcare ⇒ Medicare/Medicaid can be consolidated).
+- **Real-world events** — 36 public-record events across both scenarios (21 for The Realignment, 15 for the GFC) surface as statement popups: respond within the turn or eat the no-comment penalty. Statements move voter blocs only — never the scripted actual timeline, never the economy. Plus 11 company/market headline beats in the news wire.
+- **World Big Cycle** — the great powers 2000–2024: six nations scored on Dalio's 8 determinants from real data (composite S, 0–100), with your simulation overlaid live and the scripted ACTUAL line dashed underneath. Radar comparison included.
+- **Political Compass & cycle stage** (Network tab) — 8 Filteries-style axes (statism, economic left, regulation, ownership, high-spending, authority, traditionalism, nativism) computed from your Acts, budget deviations and fiscal stance; 4 governance label classifiers; Dalio's 18 decline markers; the 4-stage Big-Cycle classifier with debt/internal/external sub-cycle gauges and a your-inputs→determinants→stage flow map.
+- **Dimensions Beyond Energy (2030)** — a third scenario: a quantum-assisted fusion device crosses net-electric breakeven and your party holds the presidency. Manage the ten-year transition (inspired by the DBE_V0 research branch, read-only): stranded fossil assets, the Q-Day cryptography panic, the DBE monopoly fight, post-work abundance, longevity math, ecological rebound, digital rights — 15 authored transition events, scripted macro shocks, and a `detShock` engine channel for determinant hits. Losing an election is a heavy blow here, not the end — the transition outlives any one administration.
+- **Create-your-own-Act studio** (Acts tab → 🛠️) — drop or paste source material (or pick one of six pre-analyzed templates), calibrate its effects on a live balance-formula readout, and register it as a real Act of Congress: PC cost, upkeep, lag, ramp, repeal, voter-group and determinant effects, saved in your browser and shareable as JSON.
+
+---
+*v0.4 notes follow.*
+# v0.4
 
 **v0.4 adds:** 8 Act categories · budget sub-departments (FY2008 researched splits, per-child sliders, delete/restore) · **The Realignment (2016)** dual-track scenario — America's real 2017–2025 timeline plays out under your counterfactual, with a tiny real caucus you nudge via **Influence** · researched **Acts-in-Force** evidence panels (8 Acts, 1935→2025) · **Act repeal** (effects unwind in reverse) · scenario picker + era-clocked charts, 3-line polling, scripted 2017–2025 news feed, glossary for all new mechanics.
 
@@ -82,9 +94,14 @@ Every tab has a persistent **footer** with the data citations, and most numbers 
 | `js/news.js` | `window.NEWS` — per-turn historical headlines & social posts, act reactions *(content pack)* |
 | `js/glossary.js` | `window.GLOSSARY` — 3-slide explainers keyed by `data-tip` *(content pack)* |
 | `js/acts_content.js` | `window.ACT_CONTENT` — Act summaries/options evidence, preloaded Acts, budget help *(content pack)* |
-| `js/data.js` | `window.HISTORY` (real US data 2004–2024), `window.POLICY_DEFS` (16 Acts), `window.VOTER_GROUPS`, `window.BUDGET_CATS`, `window.NEW_SECTORS`, `window.NETWORK_DEF`, `window.EVENTS` — **all moddable config lives here** |
-| `js/engine.js` | Pure simulation (no DOM; UMD: `window.ENGINE` / Node `module.exports`): growth, Okun, full budget model with categories & Laffer tariffs, debt dynamics, capped homelessness/overdose trajectories, determinant drift, power score & cycle phase, party seats/midterms/presidential elections, PC upkeep & stalling, network model (`computeNetwork`), news assembly |
-| `js/ui.js` | Rendering for all 6 tabs, Chart.js wiring, glossary modal, news ticker, network SVG + live preview, CSV/JSON download |
+| `js/data.js` | `window.HISTORY` (real US data 2004–2024), `window.POLICY_DEFS` (16 Acts), `window.VOTER_GROUPS`, `window.BUDGET_CATS`, `window.NEW_SECTORS`, `window.NETWORK_DEF`, `window.EVENTS`, `window.SCENARIOS` (gfc2008 / realign2016 / **dbe2030**), `window.ACT_BUDGET_LINKS` — **all moddable config lives here** |
+| `js/scenario_2016.js` | `window.SCENARIO_2016` — scripted ACTUAL track for The Realignment (generated) |
+| `js/realworld_events.js` | `window.REALWORLD_EVENTS` — 36 statement events + 11 market beats (spec: `spec_realworld_events.md`) |
+| `js/scenario_2030.js` | `window.EVENTS.dbe` shocks + `REALWORLD_EVENTS.scenarios.dbe2030` — the fusion-transition crisis content |
+| `js/world_powers.js` | `window.WORLD_POWERS` — 6 nations × 13 metrics × 2000–2024 + normalization block |
+| `js/compass_data.js` / `js/compass.js` | Filteries-style compass axes, baselines, deltas, label gates + cycle-stage classifier (UMD) |
+| `js/engine.js` | Pure simulation (no DOM; UMD: `window.ENGINE` / Node `module.exports`): growth, Okun, full budget model with categories & Laffer tariffs, debt dynamics, capped homelessness/overdose trajectories, determinant drift (+ `detShock`), power score & cycle phase, party seats/midterms/presidential elections, PC upkeep & stalling, network model (`computeNetwork`), news assembly, act↔budget link engine, real-world event mechanics |
+| `js/ui.js` | Rendering for all 6 tabs, Chart.js wiring, glossary modal, news ticker, network SVG + live preview, act-budget badges/consolidate, event popups, compass suite, world chart, CSV/JSON download |
 | `test.js` | `node test.js` — fixed-script run + checks for all v0.3 mechanics (start phase, rent-ban fix, spend-neutral reallocation, election timing, overdose cap, budget deletion, endless mode, PC upkeep) |
 | `data/history.json` | Source data (FRED, HUD AHAR, CDC/NCHS, BJS) — kept verbatim |
 | `MATH_AND_LOGIC.md` | Every formula, its rationale, and source references |

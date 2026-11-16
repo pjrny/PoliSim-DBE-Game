@@ -58,6 +58,18 @@ Source: user priority message 2026-11-17 + uploaded specs (scoring-engine-spec.m
 - P5: GLO-BUS layer — US stock ticker + company headlines in gameplay
 Infra note: GDrive folder (G:\My Drive\APPS\Strategy Sim...) is user-local, not reachable from sandbox; user uploads files directly instead.
 
+### v0.5 workstream log (2026-11-17)
+- **WS1 Act↔Budget links — DONE.** ACT_BUDGET_LINKS (data.js), engine computeLinks/tickLinkSnap, UI badges + Consolidate buttons + impact chips (option-gated), glossary mech_links, tests (xv), browser smoke verified.
+- **WS2 real-world events — DONE.** js/realworld_events.js (36 events: 21 realign + 15 gfc + 11 market beats), engine statement mechanics (1-turn window, no-comment expiry, 2-turn bloc spread, stmtFx decay, major-first ≤2/turn, ACTUAL-track isolation), event modal + badge + Report "Public Statements" section, tests (xvi), browser smoke verified.
+- **WS3 world Big Cycle — DONE.** js/world_powers.js from world_powers_data.json (6 nations × 13 metrics × 2000–2024 + normalization), Chart.js line chart with SIM/ACTUAL overlays + standings + radar. KNOWN ISSUE awaiting user decision: sim det scale (~77) vs dataset S (USA 2008 = 58.8) — overlay floats ~19 pts high.
+- **WS4 compass — DONE.** js/compass_data.js + js/compass.js (UMD): 8 axes w/ USA baseline, scenario offsets, HSP fiscal bridge, act/budget/sector deltas, C3 VAT×transfers interaction, 4 label classifiers, 18 Dalio markers, 4-stage classifier + sub-cycle gauges; UI suite in Network tab (bars, 2D plot w/ trail, stage chip, flow map); glossary mech_compass; tests (xvii) incl. documented calibration note (Social Democracy gate trips at 140% entitlements, spec said 125%); browser smoke verified (0 pageerrors).
+- **WS6 P4 DBE 2030 scenario — DONE.** js/scenario_2030.js (EVENTS.dbe shock calendar + detShock channel, REALWORLD_EVENTS.scenarios.dbe2030 with 15 transition events + 5 market beats), SCENARIOS.dbe2030 registration (start chained to realign2016 projection end), engine detShock + keepPlayingOnLoss + start.approval override, tests (xviii), browser smoke verified (0 pageerrors). Repo read-only respected; repo's "stabilized money markets" deprioritized in favor of its own quantum-crypto destabilization material; 2038 vignette re-dated (breakeven 2030 → commercial viability 2038).
+- **WS7 P5 GLO-BUS market panel — DONE.** js/market_data.js (real Yahoo Finance quarter-end closes via agent-gw: 14 tickers × 37 quarters for realign2016, 10 × 21 for gfc2008; SIVB documented as skipped-no-data, headline-only row), Market card + marquee ticker strip on Dashboard, glossary mech_market, tests (xix), browser smoke verified.
+- **WS5 P2 custom-Act studio — DONE.** js/act_studio.js (6 Kimi-analyzed templates, honest keyword pre-fill heuristic, balance formula pc=clamp(6+3w,8,40)/upkeep/lag, buildDef validation, localStorage persistence + JSON export/import), engine registerCustomAct/unregisterCustomAct, 3-step wizard modal, custom cards with delete, glossary mech_studio, tests (xx), browser smoke verified (incl. reload-restore).
+- **WS0 GitHub push — v0.4 DONE (head f14a91f9, 13/13 SHA-verified, no secrets). v0.5 push in progress** (18 files, one-batch-per-commit + blob-SHA verify). Secrets policy unchanged.
+- **Preview — v0.5 saved (website_version_manager version 0996a90).**
+- **Open calibration decisions for user:** (1) world-chart scale mismatch (see WS3); (2) Social Democracy label gate at 140% vs spec 125% (see WS4).
+
 ## Phase 3 — Cloudflare backend (Workers + D1)  [was Phase 2]
 - Read cloudflare:cloudflare-mcp-usage skill; create D1 database (games, turns, policies, metrics_history tables)
 - Worker API: create game, submit turn, get state, leaderboards
