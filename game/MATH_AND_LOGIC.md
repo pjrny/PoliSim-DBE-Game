@@ -1,4 +1,19 @@
-# PoliSim-DBE — Math & Logic Reference (v0.3)
+# PoliSim-DBE — Math & Logic Reference (v0.4)
+
+> **v0.4 additions:** (1) scenario system — `window.SCENARIOS` (GFC 2008 classic /
+> The Realignment 2016 dual-track), scenario clock (`clockYearOf`, `turnToYear`, era-based
+> election constants `electConsts`), era-calibrated interest `{base, knee, slope}` per
+> scenario start; (2) sub-department mechanics — child slider 0–200% of own base
+> (1 PC per 10%, min 2), parent multiplier = Σ(base_bn·mult) / Σ(base_bn) over ALL
+> children incl. deleted (delete ⇒ contributes 0, denominator keeps full baseline),
+> child delete = 5 PC with fxShare-scaled backlash, restore = 5 PC; (3) repeal — effects
+> ramp off along the reverse build-up curve at the same lag, group deltas unwind
+> linearly, upkeep stops, metric anchors released, cost = max(enactment cost, 8 PC);
+> (4) dual-track — SIM = counterfactual engine (PC from `shadowParty`, no scripted
+> shocks), ACTUAL = scripted `SCENARIO_2016.byTurn` rows (turn 1 = Q1 2017) + Influence
+> nudges with 0.9975/qtr persistence decay; SIM election loss costs 3 legitimacy and
+> does not end the game.
+
 
 Every formula in `js/engine.js`, with rationale and source pointers. This is an
 **educational, stylized** model: elasticities are chosen to be directionally correct
