@@ -24,6 +24,8 @@
       <span id="hd-sent" class="badge bg-stone-700 cursor-help" data-tip="sentiment">Sentiment 42</span>
       <span id="hd-pc" class="badge bg-teal-700 cursor-help" data-tip="pc">PC 100</span>
       <span id="hd-funds" class="badge bg-teal-900 cursor-help" data-tip="funds">$100M</span>
+      <span id="hd-influ" class="badge bg-indigo-700 cursor-help hidden" data-tip="influence">Influence 10</span>
+      <span id="hd-scenario" class="badge bg-stone-600 hidden"></span>
     </div>
     <div class="ml-auto flex items-center gap-2">
       <button id="btn-next" class="btn-primary">Next Quarter ▶</button>
@@ -76,6 +78,18 @@
     </div>
   </div>
 
+  <!-- scenario picker modal -->
+  <div id="scenario-modal" class="hidden fixed inset-0 z-50 bg-stone-900/70 flex items-center justify-center p-4">
+    <div class="bg-white rounded-xl shadow-2xl max-w-2xl w-full p-6">
+      <h2 class="text-xl font-bold mb-1">Choose your crisis</h2>
+      <p class="text-xs text-stone-500 mb-4">Each scenario opens at a different moment in the Big Cycle with its own starting balance of power.</p>
+      <div class="grid md:grid-cols-2 gap-3" id="scenario-cards"></div>
+      <div class="flex justify-end mt-4">
+        <button id="scenario-cancel" class="btn-ghost border border-stone-300 hidden">Cancel</button>
+      </div>
+    </div>
+  </div>
+
   <!-- ===================== DASHBOARD ===================== -->
   <section id="tab-dashboard" class="tab-pane">
     <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-5" id="stat-cards"></div>
@@ -91,7 +105,7 @@
           <tbody></tbody>
         </table>
       </div>
-      <p class="text-[11px] text-stone-400 mt-2">Actual = real US data (FRED / HUD / CDC) for the current simulation year; series end in 2024 (turn 68).</p>
+      <p class="text-[11px] text-stone-400 mt-2">Actual = real US data (FRED / HUD / CDC) for the current simulation year; series end in 2025. In The Realignment, the Actual column tracks the scripted real timeline quarter by quarter.</p>
     </div>
 
     <div class="card mb-5">
@@ -113,7 +127,7 @@
       <div class="card"><h3 class="card-title-sm">Unemployment (%)</h3><div class="chart-box"><canvas id="ch-unemp"></canvas></div></div>
       <div class="card"><h3 class="card-title-sm">Homelessness (thousands)</h3><div class="chart-box"><canvas id="ch-homeless"></canvas></div></div>
     </div>
-    <p class="text-[11px] text-stone-400 mt-2">Grey dashed = actual US history (annual, shown at Q4, through 2024). Solid teal = your simulation. Endless mode: years roll on past 2017.</p>
+    <p class="text-[11px] text-stone-400 mt-2">Grey dashed = actual US history (annual at Q4 through 2025; in The Realignment, the scripted quarter-by-quarter track). Solid teal = your simulation. Endless mode: years roll on.</p>
   </section>
 
   <!-- ===================== ACTS ===================== -->
@@ -122,10 +136,15 @@
       <p class="text-sm text-stone-600">Acts of Congress. Each is <b>heavy</b>: an upfront PC cost plus per-turn <b>upkeep</b> — if upkeep goes unpaid the Act <span class="text-amber-700 font-semibold">stalls</span> and its effects pause.</p>
       <span class="text-sm font-semibold text-teal-800" id="pol-pc"></span>
     </div>
-    <div class="grid md:grid-cols-2 xl:grid-cols-3 gap-4 mb-6" id="policy-grid"></div>
+    <div class="mb-6" id="policy-grid"></div>
     <div class="card">
       <h2 class="card-title">National Fabric — already in force <span class="text-[11px] font-normal text-stone-400">(preloaded Acts; read-only context, not player-controlled)</span></h2>
       <div id="preloaded-acts" class="grid md:grid-cols-2 gap-3"></div>
+    </div>
+    <div class="card" id="timeline-card">
+      <h2 class="card-title"><span data-tip="mech_research">Acts in Force — what history measured</span> <span class="text-[11px] font-normal text-stone-400">(chronological effects, enactment → 2025; researched evidence for the coming strip-and-simulate repeal feature)</span></h2>
+      <p class="text-[11px] text-stone-400 mb-3">Eight heavy Acts researched from primary sources (SSA, CMS, USDA, EPA, DOL, OMB): what each did to the budget, the metrics and the determinants — and who screams if it is stripped away.</p>
+      <div id="act-timelines" class="space-y-2"></div>
     </div>
   </section>
 
@@ -134,7 +153,7 @@
     <div class="grid lg:grid-cols-3 gap-5">
       <div class="lg:col-span-2 card">
         <h2 class="card-title">Federal Budget — FY2008 baseline outlays, adjustable 0–200%</h2>
-        <p class="text-[11px] text-stone-400 mb-3">Sliders cost 2 PC per 10% move. ✕ deletes a category (one-time 10 PC, big backlash). Net Interest is debt-driven and locked. Hover a line for its explainer.</p>
+        <p class="text-[11px] text-stone-400 mb-3">Sliders cost 2 PC per 10% move. Categories with sub-departments expand into editable child lines (1 PC per 10%, min 2; ✕ a child = 5 PC and the parent's effects weaken). ✕ on the parent deletes the whole line (10 PC, big backlash). Net Interest is debt-driven and locked. Hover a line for its explainer.</p>
         <div id="budget-rows" class="space-y-1.5"></div>
         <div class="mt-4 pt-3 border-t border-stone-200">
           <h3 class="card-title-sm">Add a new federal sector <span class="text-stone-400 font-normal">(one-time 8 PC)</span></h3>
@@ -179,11 +198,16 @@
         <div class="card">
           <h2 class="card-title">Voter Groups <span id="el-poll" class="float-right text-teal-800"></span></h2>
           <div id="voter-table" class="space-y-2"></div>
-          <p class="text-[11px] text-stone-400 mt-3">Win threshold: weighted approval ≥ 50%. Presidential elections at turns 20, 36, 52… (Q4 2012, Q4 2016…); midterms at turns 12, 28, 44… (−5 penalty for holding the White House). Lose the presidency and the game ends.</p>
+          <p class="text-[11px] text-stone-400 mt-3">Win threshold: weighted approval ≥ 50%. Elections follow the scenario calendar (−5 midterm penalty for holding the White House). In the GFC scenario, losing the presidency ends the game; a new party in The Realignment simply keeps organizing.</p>
           <div id="election-history" class="mt-3 text-xs"></div>
         </div>
       </div>
       <div class="space-y-5">
+        <div class="card" id="influence-card">
+          <h3 class="card-title-sm"><span data-tip="mech_influence">ACTUAL Track — Spend Influence</span> <span id="influ-pts" class="float-right text-indigo-800"></span></h3>
+          <p class="text-[11px] text-stone-400 mb-2">Your real caucus is tiny: these nudges barely dent the actual timeline — but they are real. Influence regenerates +5/turn (cap 25).</p>
+          <div class="grid grid-cols-2 gap-2" id="influence-actions"></div>
+        </div>
         <div class="card"><h3 class="card-title-sm">Polling Trend (weighted approval %)</h3><div class="chart-box"><canvas id="ch-poll"></canvas></div></div>
         <div class="card">
           <h3 class="card-title-sm">Court a Voter Bloc <span id="camp-funds" class="float-right"></span></h3>
@@ -205,7 +229,7 @@
       <div class="overflow-x-auto">
         <table class="w-full text-xs" id="det-compare">
           <thead><tr class="text-left text-stone-500 border-b border-stone-200">
-            <th class="py-1 pr-3">Determinant</th><th class="py-1 pr-3">Start (2008)</th><th class="py-1 pr-3">Now</th><th class="py-1">Change</th>
+            <th class="py-1 pr-3">Determinant</th><th class="py-1 pr-3">Start</th><th class="py-1 pr-3">Now</th><th class="py-1">Change</th>
           </tr></thead>
           <tbody></tbody>
         </table>
@@ -234,7 +258,7 @@
 
 <footer class="bg-stone-200 border-t border-stone-300">
   <div class="max-w-7xl mx-auto px-4 py-3 text-[11px] text-stone-500 leading-relaxed">
-    <b>PoliSim-DBE v0.3</b> · Phase 2 · Educational simulation — stylized model, not a forecast.
+    <b>PoliSim-DBE v0.4</b> · Act categories · budget sub-departments · The Realignment (2016) dual-track scenario · Act-effect research layer · Educational simulation — stylized model, not a forecast.
     Data: FRED via igo_open_data (pulled 2026-09-19; GDPC1, GDP, UNRATE, GFDEGDQ188S, PAYEMS, MEHOINUSA672N, CPIAUCSL, FGRECPT/FGEXPND Q4 SAAR NIPA), HUD AHAR, CDC/NCHS NVSS, BJS, CBO, PWBM — full list & formulas in
     <a href="MATH_AND_LOGIC.md" class="text-teal-700 underline">MATH_AND_LOGIC.md</a> ·
     <a href="https://github.com/pjrny/PoliSim-DBE-Game" class="text-teal-700 underline" target="_blank" rel="noopener">github.com/pjrny/PoliSim-DBE-Game</a>
@@ -244,7 +268,9 @@
 <script src="js/news.js"></script>
 <script src="js/glossary.js"></script>
 <script src="js/acts_content.js"></script>
+<script src="js/act_timeline.js"></script>
 <script src="js/data.js"></script>
+<script src="js/scenario_2016.js"></script>
 <script src="js/engine.js"></script>
 <script src="js/ui.js"></script>
 </body>
