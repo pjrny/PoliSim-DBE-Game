@@ -1,14 +1,17 @@
 /* ============================================================================
-   PoliSim-DBE — ui.js  (v0.3)
+   PoliSim-DBE — ui.js  (v0.4)
    Rendering, tab navigation, Chart.js wiring, event handlers.
-   Requires js/news.js, js/glossary.js, js/acts_content.js (optional, defensive),
-   then js/data.js and js/engine.js loaded first.
+   v0.4: scenario picker (GFC 2008 / The Realignment 2016 dual-track),
+   grouped Acts rail, budget sub-departments, influence actions, researched
+   Act-effect timelines, scenario-clocked charts.
    ========================================================================== */
 (function () {
   'use strict';
 
   var H = window.HISTORY, POLICIES = window.POLICY_DEFS, VG = window.VOTER_GROUPS, EV = window.EVENTS;
   var BUDGET = window.BUDGET_CATS || [], SECTORS = window.NEW_SECTORS || [];
+  var SCENARIOS = window.SCENARIOS || null;
+  var ACT_CATEGORIES = window.ACT_CATEGORIES || [];
   var E = window.ENGINE;
   var st = E.createGame();
   var charts = {};   // Chart.js instances
@@ -21,6 +24,21 @@
   if (!ACT_CONTENT.preloaded) ACT_CONTENT.preloaded = [];
   if (!ACT_CONTENT.budgetHelp) ACT_CONTENT.budgetHelp = {};
   var GLOSSARY = (typeof window.GLOSSARY !== 'undefined' && window.GLOSSARY) || {};
+  var SCENARIO_2016 = (typeof window.SCENARIO_2016 !== 'undefined' && window.SCENARIO_2016) || null;
+  var ACT_TIMELINES = (typeof window.ACT_TIMELINES !== 'undefined' && window.ACT_TIMELINES) || null;
+
+  /* ---- scenario helpers ---- */
+  function scenarioDef() {
+    if (st.scenario && SCENARIOS && SCENARIOS[st.scenario]) return SCENARIOS[st.scenario];
+    return null;
+  }
+  function scenarioStartState() {
+    var sc = scenarioDef();
+    if (sc && sc.start) return sc.start;
+    return EV.start;
+  }
+  function clockYear() { return st.clockYear || scenarioStartState().clockYear || scenarioStartState().year || 2008; }
+  function histLastTurn() { var sc = scenarioDef(); return (sc && sc.histLastTurn) || EV.histLastTurn || 72; }
 
   /* ---------------- helpers ---------------- */
   function $(id) { return document.getElementById(id); }
@@ -47,9 +65,20 @@
   function histAt(series, year) {
     var v = H[series];
     if (!v) return null;
-    if (year > 2024) return null; // actuals end in 2024 (turn 68)
-    var y = String(Math.min(2024, Math.max(2004, year)));
+    if (year > 2025) return null; // actuals end in 2025 (turn 72 on the gfc clock)
+    var y = String(Math.min(2025, Math.max(2004, year)));
     return v[y] !== undefined ? v[y] : null;
+  }
+  // actual value for the metrics table: scripted ACTUAL track in dual-track, else HISTORY
+  function actualAt(rowDef) {
+    if (st.dualTrack && st.actual && st.actual.history.length) {
+      var h = st.actual.history[st.actual.history.length - 1];
+      var map = { 'Real GDP ($bn chained-2017)': 'gdp_level', 'Unemployment (%)': 'unemployment', 'Debt / GDP (%)': 'debt_gdp', 'Median household income ($)': 'med_income', 'Homelessness (thousands)': 'homelessness', 'Overdose deaths / yr': 'overdoses', 'Incarcerated (millions)': 'incarcerated' };
+      var k = map[rowDef.name];
+      if (k && h[k] !== undefined) return h[k];
+      return null;
+    }
+    return rowDef.anum(st.year);
   }
 
   /* ---------------- tabs ---------------- */
@@ -125,8 +154,19 @@
     $('hd-pc').textContent = 'PC ' + Math.floor(st.pc) + '/' + Math.round(pcs.cap);
     $('hd-pc').title = 'Political Capital — spent on Acts (upfront + upkeep) and budget moves. Regen +' + f1(st.pcRegen || pcs.regen) + '/turn from party strength.';
     $('hd-funds').textContent = '$' + Math.floor(st.funds) + 'M';
+    // v0.4: dual-track badges
+    var inf = $('hd-influ'), scb = $('hd-scenario');
+    if (st.dualTrack) {
+      inf.classList.remove('hidden');
+      inf.textContent = 'Influence ' + Math.floor(st.influence) + '/' + st.influenceCap;
+      inf.title = 'Influence — ACTUAL-track nudge points. Small, real effects on the scripted timeline. +' + st.influencePerTurn + '/turn.';
+      scb.classList.remove('hidden');
+      scb.textContent = scenarioDef() ? scenarioDef().name : '';
+    } else { inf.classList.add('hidden'); scb.classList.add('hidden'); }
     var ban = $('event-banner');
-    if (st.turn >= 1 && st.turn <= 5 && !st.over) { ban.textContent = EV.gfc.banner; ban.classList.remove('hidden'); }
+    var evDef = (st.scenario && EV[st.scenario === 'realign2016' ? 'realign' : 'gfc']) || EV.gfc;
+    if (st.turn >= 1 && st.turn <= 5 && !st.over && evDef && evDef.banner) { ban.textContent = evDef.banner; ban.classList.remove('hidden'); }
+    else if (st.dualTrack && st.turn === 0 && evDef && evDef.banner) { ban.textContent = evDef.banner; ban.classList.remove('hidden'); }
     else ban.classList.add('hidden');
     $('btn-next').disabled = st.over;
   }
@@ -168,8 +208,14 @@
       nameTd.setAttribute('data-tip', r.tip);
       tr.appendChild(nameTd);
       tr.appendChild(el('td', '', r.sim()));
-      tr.appendChild(el('td', 'text-stone-400', r.act(st.year)));
-      var av = r.anum(st.year), dcell = el('td', '', '—');
+      var avRaw = actualAt(r);
+      var avTxt;
+      if (avRaw === null || avRaw === undefined) avTxt = st.dualTrack ? '—' : r.act(st.year);
+      else if (r.name.indexOf('Unemployment') === 0 || r.name.indexOf('Incarcerated') === 0) avTxt = f2(avRaw);
+      else if (r.name.indexOf('Debt') === 0) avTxt = f1(avRaw);
+      else avTxt = kfmt(avRaw);
+      tr.appendChild(el('td', 'text-stone-400', avTxt));
+      var av = avRaw !== null ? avRaw : r.anum(st.year), dcell = el('td', '', '—');
       if (av !== null && av !== undefined) {
         var d = r.num() - av;
         var good = r.inv ? d < 0 : d > 0;
@@ -250,9 +296,33 @@
   function buildPolicyCards() {
     var grid = $('policy-grid');
     grid.innerHTML = '';
-    POLICIES.forEach(function (def) {
+    // v0.4: group Acts into category shelves (ported from the old build's POLICY_CATEGORIES)
+    var byId = {};
+    POLICIES.forEach(function (d) { byId[d.id] = d; });
+    var groups = (ACT_CATEGORIES && ACT_CATEGORIES.length) ? ACT_CATEGORIES : [{ id: 'all', name: 'Acts', color: '#0f766e', acts: POLICIES.map(function (d) { return d.id; }) }];
+    groups.forEach(function (cat) {
+      var section = el('div', 'polcat mb-5');
+      section.id = 'polcat-' + cat.id;
+      var head = el('div', 'polcat-head');
+      head.innerHTML = '<span class="polcat-bar" style="background:' + esc(cat.color) + '"></span>' +
+        '<span class="polcat-name">' + esc(cat.name) + '</span>' +
+        '<span class="polcat-count">' + cat.acts.length + ' Act' + (cat.acts.length > 1 ? 's' : '') + '</span>';
+      section.appendChild(head);
+      var inner = el('div', 'grid md:grid-cols-2 xl:grid-cols-3 gap-4');
+      cat.acts.forEach(function (aid) {
+        var def = byId[aid];
+        if (def) inner.appendChild(buildPolicyCard(def, cat.color));
+      });
+      section.appendChild(inner);
+      grid.appendChild(section);
+    });
+  }
+
+  function buildPolicyCard(def, color) {
+    {
       var card = el('div', 'policy-card');
       card.id = 'polcard-' + def.id;
+      card.style.borderLeft = '3px solid ' + (color || '#0f766e');
       card.appendChild(el('h3', null, esc(def.name)));
       var ac = ACT_CONTENT.policies[def.id];
       card.appendChild(el('p', 'desc', esc((ac && ac.summary) || def.desc)));
@@ -314,13 +384,17 @@
       var rampInfo = el('p', 'meta');
       rampInfo.id = 'polramp-' + def.id;
       card.appendChild(rampInfo);
-      grid.appendChild(card);
-    });
+      // v0.4: repeal control — strips an in-force Act, effects unwind in reverse
+      var rep = el('div', 'mt-1');
+      rep.id = 'polrepeal-' + def.id;
+      card.appendChild(rep);
+      return card;
+    }
   }
 
   function renderPolicies() {
     var pcs = E.pcStats(st);
-    $('pol-pc').textContent = 'Political Capital: ' + Math.floor(st.pc) + ' / ' + Math.round(pcs.cap) + '  (+' + f1(st.pcRegen || pcs.regen) + '/turn)';
+    $('pol-pc').textContent = 'Political Capital (SIM): ' + Math.floor(st.pc) + ' / ' + Math.round(pcs.cap) + '  (+' + f1(st.pcRegen || pcs.regen) + '/turn)' + (st.dualTrack ? '  ·  sized to your shadow governing mandate, not your 6-seat caucus' : '');
     POLICIES.forEach(function (def) {
       var ps = st.pol[def.id];
       var ctl = $('pol-' + def.id);
@@ -349,6 +423,22 @@
         evWrap.appendChild(evidenceBlock(def, ps.value));
         evWrap._for = ps.value;
       }
+      // repeal button: visible only when the Act is in force
+      var rw = $('polrepeal-' + def.id);
+      if (rw) {
+        var inForce = ps.value !== def.def && !(def.options && def.options.length && def.options[0].id === 'off' && ps.value === 'off');
+        if (inForce && !rw._built) {
+          rw._built = true;
+          var b = el('button', 'btn-ghost border border-red-300 text-red-700 !text-[11px] !py-1 !px-2', '🧨 Repeal — strip this Act, effects unwind in reverse');
+          b.addEventListener('click', function () {
+            var res = E.repealAct(st, def.id);
+            toast(res.msg, !res.ok);
+            render();
+          });
+          rw.appendChild(b);
+        }
+        if (rw._built) rw.style.display = (inForce && !st.over) ? '' : 'none';
+      }
     });
   }
 
@@ -365,6 +455,40 @@
       if (a.does) box.appendChild(el('p', 'text-[11px] text-stone-500 mt-1', esc(a.does)));
       if (a.ongoing) box.appendChild(el('p', 'text-[11px] text-stone-500', '<b>Today:</b> ' + esc(a.ongoing)));
       if (a.cites && a.cites.length) box.appendChild(el('p', 'text-[10px] text-stone-400 mt-1', 'Sources: ' + esc(a.cites.join('; '))));
+      c.appendChild(box);
+    });
+  }
+
+  /* ---------------- v0.4: researched Act-effect timelines ---------------- */
+  function buildActTimelines() {
+    var c = $('act-timelines');
+    if (!c) return;
+    c.innerHTML = '';
+    if (!ACT_TIMELINES || !ACT_TIMELINES.acts) { if (c.parentNode) c.parentNode.style.display = 'none'; return; }
+    if (c.parentNode) c.parentNode.style.display = '';
+    Object.keys(ACT_TIMELINES.acts).forEach(function (key) {
+      var T = ACT_TIMELINES.acts[key];
+      var box = el('details', 'border border-stone-200 rounded-lg bg-white');
+      var arc = T.budgetArc || [];
+      var arcTxt = arc.map(function (p) { return (p.year >= 2000 ? String(p.year) : String(p.year).slice(2) + '…') + ' $' + (p.bn >= 1000 ? f1(p.bn / 1000) + 'T' : Math.round(p.bn) + 'B'); }).join(' → ');
+      var sum = el('summary', 'cursor-pointer px-3 py-2 text-xs font-bold text-stone-700 hover:bg-stone-50',
+        esc(T.name) + ' <span class="font-normal text-stone-400">(' + esc(T.enacted) + ' · budget: ' + esc(arcTxt) + ')</span>');
+      box.appendChild(sum);
+      var body = el('div', 'px-3 pb-3 text-[11px] text-stone-600 space-y-1.5');
+      (T.metricEffects || []).forEach(function (m) {
+        body.appendChild(el('p', null, '<b>' + esc(m.metric) + ':</b> ' + esc(m.effect) + ' <span class="text-stone-400">[' + esc(m.cite) + ']</span>'));
+      });
+      if (T.detContribution && T.detContribution.length) {
+        var dets = T.detContribution.map(function (d) { return esc(d.det) + ' ' + (d.delta === '+' ? '▲' : d.delta === '-' ? '▼' : '◆'); }).join(' · ');
+        body.appendChild(el('p', null, '<b>Determinants:</b> ' + dets));
+      }
+      if (T.stripStakeholders && T.stripStakeholders.length) {
+        var strip = T.stripStakeholders.map(function (s) { return esc(s.group) + ' (' + esc(s.impact) + ')'; }).join(' · ');
+        body.appendChild(el('p', 'text-red-800', '<b>If stripped:</b> ' + strip));
+      }
+      if (T.budgetCat && T.budgetCat.length) body.appendChild(el('p', 'text-stone-400', 'Maps to budget line(s): ' + T.budgetCat.join(', ')));
+      if (T.sources && T.sources.length) body.appendChild(el('p', 'text-stone-400', 'Sources: ' + esc(T.sources.join('; '))));
+      box.appendChild(body);
       c.appendChild(box);
     });
   }
@@ -418,7 +542,63 @@
         });
       })(cat);
       row.appendChild(del);
+      // v0.4: restore control (appears when the line or a sub-line is deleted)
+      var rst = el('button', 'brestore hidden', '⟲');
+      rst.title = 'Restore deleted line(s) in this category (5 PC)';
+      rst.id = 'brestore-' + cat.id;
+      (function (cat, rst) {
+        rst.addEventListener('click', function () {
+          var res = E.restoreBudgetLine(st, cat.id);
+          toast(res.msg, !res.ok);
+          render();
+        });
+      })(cat, rst);
+      row.appendChild(rst);
       c.appendChild(row);
+      // v0.4: sub-department child rows
+      if (cat.sub && cat.sub.length) {
+        var subs = el('div', 'bsubs');
+        subs.id = 'bsubs-' + cat.id;
+        cat.sub.forEach(function (sd) {
+          var srow = el('div', 'budget-row');
+          srow.id = 'bsubrow-' + cat.id + '-' + sd.id;
+          var sname = el('span', 'bname', esc(sd.name));
+          sname.setAttribute('data-tip', 'budget_sub');
+          srow.appendChild(sname);
+          var sr = el('input');
+          sr.type = 'range'; sr.min = 0; sr.max = 200; sr.step = 10;
+          sr.value = 100;
+          sr.id = 'bsub-' + cat.id + '-' + sd.id;
+          (function (cat, sd, sr) {
+            sr.addEventListener('input', function () {
+              var lab = $('bsubval-' + cat.id + '-' + sd.id);
+              if (lab) lab.textContent = sr.value + '%';
+              previewFx = null;
+            });
+            sr.addEventListener('change', function () {
+              var res = E.applyBudgetSub(st, cat.id, sd.id, parseFloat(sr.value) / 100);
+              toast(res.msg, !res.ok);
+              render();
+            });
+          })(cat, sd, sr);
+          srow.appendChild(sr);
+          srow.appendChild(el('span', 'text-center font-semibold text-teal-800', '100%')).id = 'bsubval-' + cat.id + '-' + sd.id;
+          srow.appendChild(el('span', 'text-right text-stone-500', '')).id = 'bsubbn-' + cat.id + '-' + sd.id;
+          srow.appendChild(el('span', 'text-right text-stone-400', '')).id = 'bsubshare-' + cat.id + '-' + sd.id;
+          var sdel = el('button', 'bdel', '✕');
+          sdel.title = 'Eliminate this sub-department: one-time 5 PC, parent effects weaken by its share';
+          (function (cat, sd) {
+            sdel.addEventListener('click', function () {
+              var res = E.deleteBudgetSub(st, cat.id, sd.id);
+              toast(res.msg, !res.ok);
+              render();
+            });
+          })(cat, sd);
+          srow.appendChild(sdel);
+          subs.appendChild(srow);
+        });
+        c.appendChild(subs);
+      }
     });
     var sel = $('sector-select');
     sel.innerHTML = '';
@@ -446,6 +626,29 @@
       $('bshare-' + L.id).textContent = f2(L.share) + '%';
       if (row) row.classList.toggle('deleted', !!L.deleted);
       if (!L.locked) slider.disabled = st.over;
+      // v0.4: sub-department lines + restore control
+      var rst = $('brestore-' + L.id);
+      if (rst) {
+        var anySubDeleted = L.subs ? L.subs.some(function (s) { return s.deleted; }) : false;
+        rst.classList.toggle('hidden', !(L.deleted || anySubDeleted));
+        rst.disabled = st.over;
+      }
+      if (L.subs) {
+        L.subs.forEach(function (S) {
+          var ssr = $('bsub-' + L.id + '-' + S.id);
+          if (!ssr) return;
+          if (document.activeElement !== ssr) ssr.value = Math.round(S.mult * 100);
+          ssr.disabled = st.over || !!L.deleted || S.deleted;
+          var sv = $('bsubval-' + L.id + '-' + S.id);
+          if (sv) sv.textContent = Math.round(S.mult * 100) + '%';
+          var sb = $('bsubbn-' + L.id + '-' + S.id);
+          if (sb) sb.textContent = S.deleted ? '—' : money(S.bn);
+          var ssh = $('bsubshare-' + L.id + '-' + S.id);
+          if (ssh) ssh.textContent = S.deleted ? '' : f2(S.bn / st.gdp_nominal * 100) + '%';
+          var srow = $('bsubrow-' + L.id + '-' + S.id);
+          if (srow) srow.classList.toggle('deleted', !!S.deleted);
+        });
+      }
     });
     // sector lines (created at runtime)
     var sc = $('sector-rows');
@@ -640,8 +843,9 @@
     pres.innerHTML = 'White House: ' + (p.president ? '<span class="badge bg-teal-700 text-white" data-tip="party_president">held by your party</span>' : '<span class="badge bg-red-700 text-white">lost</span>');
     sc.appendChild(pres);
     var pcs = E.pcStats(st);
-    $('party-pc-info').innerHTML = 'PC regen = 4 + House ' + f1(p.house / 435 * 4) + ' + Senate ' + f1(p.senate / 100 * 3) + ' + Govs ' + f1(p.governors / 50 * 2) + (p.president ? ' + presidency 2' : '') +
-      ' = <b>+' + f1(st.pcRegen || pcs.regen) + '/turn</b> · cap = 60 + 0.4×(House+Senate) = <b>' + Math.round(pcs.cap) + '</b>. Seats drift toward your approval-implied share each quarter.';
+    var pcBasis = st.dualTrack ? 'shadow governing mandate' : 'party';
+    $('party-pc-info').innerHTML = 'PC regen (sized to your ' + pcBasis + ') = 4 + House ' + f1((st.dualTrack ? st.shadowParty : p).house / 435 * 4) + ' + Senate ' + f1((st.dualTrack ? st.shadowParty : p).senate / 100 * 3) + ' + Govs ' + f1((st.dualTrack ? st.shadowParty : p).governors / 50 * 2) + ((st.dualTrack ? st.shadowParty : p).president ? ' + presidency 2' : '') +
+      ' = <b>+' + f1(st.pcRegen || pcs.regen) + '/turn</b> · cap = 60 + 0.4×(House+Senate) = <b>' + Math.round(pcs.cap) + '</b>. Your real caucus: House ' + Math.round(p.house) + ', Senate ' + Math.round(p.senate) + ', Govs ' + Math.round(p.governors) + ' — it drifts toward your approval-implied share each quarter.';
     $('party-nextel').textContent = 'Next presidential: turn ' + E.nextPresElection(st.turn) + ' · next midterm: turn ' + nextMidterm(st.turn);
 
     var c = $('voter-table'); c.innerHTML = '';
@@ -674,7 +878,10 @@
         (m.dHouse >= 0 ? '+' : '') + m.dHouse + ' → ' + m.house + ', Senate ' + (m.dSenate >= 0 ? '+' : '') + m.dSenate + ' → ' + m.senate + ', Govs ' + (m.dGov >= 0 ? '+' : '') + m.dGov + ' → ' + m.governors + '</div>');
     });
     hist.sort(function () { return 0; });
-    eh.innerHTML = hist.length ? hist.join('') : '<span class="text-stone-400">No elections held yet. First midterm at turn 12 (Q4 2010), first presidential at turn 20 (Q4 2012).</span>';
+    var noElect = st.dualTrack
+      ? '<span class="text-stone-400">No elections held yet. Your new party first faces the voters at the ' + (clockYear() + 1) + ' midterms (turn ' + ((scenarioDef() && scenarioDef().midtermStart) || 8) + ') and the ' + (clockYear() + 3) + ' presidential (turn ' + ((scenarioDef() && scenarioDef().electionStart) || 16) + '). Losing the presidency does not end a new party — it keeps organizing.</span>'
+      : '<span class="text-stone-400">No elections held yet. First midterm at turn 12 (Q4 2010), first presidential at turn 20 (Q4 2012).</span>';
+    eh.innerHTML = hist.length ? hist.join('') : noElect;
 
     // campaign actions — available EVERY turn; ×1.5 in campaign windows
     var open = E.campaignOpen(st);
@@ -699,17 +906,45 @@
     });
   }
   function nextMidterm(t) {
-    var m = 12;
-    while (m <= t) m += 16;
+    var sc = scenarioDef();
+    var m = (sc && sc.midtermStart) || 12;
+    var cyc = (sc && sc.electionCycle) || 16;
+    while (m <= t) m += cyc;
     return m;
+  }
+
+  /* ---------------- v0.4: ACTUAL-track influence actions ---------------- */
+  function renderInfluence() {
+    var card = $('influence-card');
+    if (!card) return;
+    card.style.display = st.dualTrack ? '' : 'none';
+    if (!st.dualTrack) return;
+    $('influ-pts').textContent = 'Influence: ' + Math.floor(st.influence) + ' (+' + st.influencePerTurn + '/turn, cap ' + st.influenceCap + ')';
+    var box = $('influence-actions');
+    box.innerHTML = '';
+    Object.keys(E.INFLUENCE).forEach(function (id) {
+      var a = E.INFLUENCE[id];
+      var used = (st.influenceLog || []).filter(function (x) { return x.action === a.name; }).length;
+      var b = el('button', 'btn-primary !text-xs !py-2 !bg-indigo-700 hover:!bg-indigo-800',
+        esc(a.name) + '<br><span class="font-normal opacity-80">' + a.cost + ' Influence' + (used ? ' · used ×' + used : '') + '</span>');
+      b.disabled = st.over || st.influence < a.cost;
+      b.title = a.blurb;
+      b.addEventListener('click', function () {
+        var res = E.applyInfluence(st, id);
+        toast(res.msg, !res.ok);
+        render();
+      });
+      box.appendChild(b);
+    });
   }
 
   /* ---------------- report tab ---------------- */
   function renderReport() {
     var tb = document.querySelector('#det-compare tbody');
     tb.innerHTML = '';
+    var s0d = scenarioStartState().determinants;
     E.DET_IDS.forEach(function (d) {
-      var s0 = EV.start.determinants[d], now = st.det[d], delta = now - s0;
+      var s0 = s0d[d], now = st.det[d], delta = now - s0;
       var tr = el('tr', 'border-b border-stone-100');
       tr.appendChild(el('td', 'font-medium text-stone-600', DET_LABELS[d]));
       tr.appendChild(el('td', '', f1(s0)));
@@ -780,23 +1015,35 @@
   $('news-strip').addEventListener('mouseleave', function () { startTicker(); });
 
   /* ---------------- charts ---------------- */
-  var SIM_COLOR = '#0f766e', ACT_COLOR = '#a8a29e';
-  function chartLen() { return Math.max(41, st.turn + 1, EV.histLastTurn + 1); }
+  var SIM_COLOR = '#0f766e', ACT_COLOR = '#a8a29e', REP_COLOR = '#b91c1c', DEM_COLOR = '#1d4ed8';
+  function chartLen() { return Math.max(41, st.turn + 1, histLastTurn() + 1); }
   function labelsN(n) {
     var L = [];
+    var cy = clockYear();
     for (var t = 0; t < n; t++) {
-      if (t === 0) { L.push("Q4 '07"); continue; }
-      var y = 2008 + Math.floor((t - 1) / 4), q = ((t - 1) % 4) + 1;
+      if (t === 0) { L.push("Q4 '" + String(cy - 1).slice(2)); continue; }
+      var y = cy + Math.floor((t - 1) / 4), q = ((t - 1) % 4) + 1;
       L.push('Q' + q + " '" + String(y).slice(2));
     }
     return L;
   }
-  // actual annual series placed at Q4 positions (turn 4 = 2008 … turn 68 = 2024)
-  function actualSeries(key) {
+  /* actual series: annual HISTORY placed at Q4 positions (turn 4 = clockYear …).
+     In dual-track scenarios the scripted per-turn ACTUAL track is used instead. */
+  var ACTUAL_KEYMAP = { gdp_level: 'real_gdp_bn_chained2017', debt_gdp: 'debt_to_gdp_pct', unemployment: 'unemployment_pct', homelessness: 'homelessness_pit' };
+  function actualSeries(metricKey) {
     var arr = new Array(chartLen()).fill(null);
-    arr[0] = H[key]['2007'] !== undefined ? H[key]['2007'] : null;
-    for (var y = 2008; y <= 2024; y++) {
-      var t = (y - 2008 + 1) * 4;
+    if (st.dualTrack && st.actual && ACTUAL_KEYMAP[metricKey]) {
+      arr[0] = scenarioStartState()[metricKey];
+      st.actual.history.forEach(function (h) { arr[h.turn] = h[ACTUAL_KEYMAP[metricKey]] !== undefined ? h[ACTUAL_KEYMAP[metricKey]] : null; });
+      return arr;
+    }
+    var key = ACTUAL_KEYMAP[metricKey] || metricKey;
+    if (!H[key]) return arr;
+    var cy = clockYear();
+    arr[0] = H[key][String(cy - 1)] !== undefined ? H[key][String(cy - 1)] : null;
+    for (var y = cy; y <= cy + 17; y++) {
+      var t = (y - cy + 1) * 4;
+      if (t >= arr.length) break;
       arr[t] = H[key][String(y)] !== undefined ? H[key][String(y)] : null;
     }
     return arr;
@@ -843,29 +1090,75 @@
   }
 
   function buildCharts() {
-    makeChart('ch-gdp', simSeries(function (s) { return s.gdp_level; }, EV.start.gdp_level), actualSeries('real_gdp_bn_chained2017'));
-    makeChart('ch-debt', simSeries(function (s) { return s.debt_gdp; }, EV.start.debt_gdp), actualSeries('debt_to_gdp_pct'));
-    makeChart('ch-unemp', simSeries(function (s) { return s.unemployment; }, EV.start.unemployment), actualSeries('unemployment_pct'));
-    makeChart('ch-homeless', simSeries(function (s) { return s.homelessness; }, EV.start.homelessness), actualSeries('homelessness_pit'));
-    makeChart('ch-poll', simSeries(function (s, i) { return st.pollHistory[i + 1] ? st.pollHistory[i + 1].pct : null; }, st.pollHistory[0].pct), null, '');
-    if (charts['ch-poll']) {
-      charts['ch-poll'].data.datasets[1].hidden = true;
-      charts['ch-poll'].options.scales.y.min = 0;
-      charts['ch-poll'].options.scales.y.max = 100;
-      charts['ch-poll'].update('none');
+    var s0 = scenarioStartState();
+    makeChart('ch-gdp', simSeries(function (s) { return s.gdp_level; }, s0.gdp_level), actualSeries('gdp_level'));
+    makeChart('ch-debt', simSeries(function (s) { return s.debt_gdp; }, s0.debt_gdp), actualSeries('debt_gdp'));
+    makeChart('ch-unemp', simSeries(function (s) { return s.unemployment; }, s0.unemployment), actualSeries('unemployment'));
+    makeChart('ch-homeless', simSeries(function (s) { return s.homelessness; }, s0.homelessness), actualSeries('homelessness'));
+    makePollChart();
+  }
+  function makePollChart() {
+    var player = simSeries(function (s, i) { return st.pollHistory[i + 1] ? st.pollHistory[i + 1].pct : null; }, st.pollHistory[0].pct);
+    if (!st.dualTrack || !SCENARIO_2016) {
+      makeChart('ch-poll', player, null, '');
+      if (charts['ch-poll']) {
+        charts['ch-poll'].data.datasets[1].hidden = true;
+        charts['ch-poll'].options.scales.y.min = 0;
+        charts['ch-poll'].options.scales.y.max = 100;
+        charts['ch-poll'].update('none');
+      }
+      return;
     }
+    // dual-track: three-line polling — Republican & Democrat actuals + yours
+    var n = chartLen();
+    function pollArr(vals) {
+      var a = new Array(n).fill(null);
+      for (var t = 0; t < n && t < vals.length; t++) a[t] = vals[t];
+      return a;
+    }
+    if (!hasCharts) return;
+    var ctx = $('ch-poll');
+    if (!ctx) return;
+    charts['ch-poll'] = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: labelsN(n),
+        datasets: [
+          { label: 'Your party (SIM)', data: player, borderColor: SIM_COLOR, backgroundColor: SIM_COLOR, borderWidth: 2.5, pointRadius: 0, tension: 0.25, spanGaps: true },
+          { label: 'Republican (actual)', data: pollArr(SCENARIO_2016.polling.republican), borderColor: REP_COLOR, backgroundColor: REP_COLOR, borderWidth: 1.5, pointRadius: 0, tension: 0.25, spanGaps: true },
+          { label: 'Democrat (actual)', data: pollArr(SCENARIO_2016.polling.democrat), borderColor: DEM_COLOR, backgroundColor: DEM_COLOR, borderWidth: 1.5, pointRadius: 0, tension: 0.25, spanGaps: true }
+        ]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false, animation: false,
+        interaction: { intersect: false, mode: 'index' },
+        scales: {
+          x: { ticks: { maxTicksLimit: 10, font: { size: 9 } }, grid: { display: false } },
+          y: { min: 0, max: 100, ticks: { font: { size: 9 } }, grid: { color: '#f5f5f4' } }
+        },
+        plugins: { legend: { labels: { boxWidth: 10, font: { size: 9 } } } }
+      }
+    });
   }
   function updateCharts() {
-    updateChart('ch-gdp', simSeries(function (s) { return s.gdp_level; }, EV.start.gdp_level), actualSeries('real_gdp_bn_chained2017'));
-    updateChart('ch-debt', simSeries(function (s) { return s.debt_gdp; }, EV.start.debt_gdp), actualSeries('debt_to_gdp_pct'));
-    updateChart('ch-unemp', simSeries(function (s) { return s.unemployment; }, EV.start.unemployment), actualSeries('unemployment_pct'));
-    updateChart('ch-homeless', simSeries(function (s) { return s.homelessness; }, EV.start.homelessness), actualSeries('homelessness_pit'));
+    var s0 = scenarioStartState();
+    updateChart('ch-gdp', simSeries(function (s) { return s.gdp_level; }, s0.gdp_level), actualSeries('gdp_level'));
+    updateChart('ch-debt', simSeries(function (s) { return s.debt_gdp; }, s0.debt_gdp), actualSeries('debt_gdp'));
+    updateChart('ch-unemp', simSeries(function (s) { return s.unemployment; }, s0.unemployment), actualSeries('unemployment'));
+    updateChart('ch-homeless', simSeries(function (s) { return s.homelessness; }, s0.homelessness), actualSeries('homelessness'));
     if (charts['ch-poll']) {
       var want = chartLen();
       if (charts['ch-poll'].data.labels.length !== want) charts['ch-poll'].data.labels = labelsN(want);
       var arr = new Array(want).fill(null);
       st.pollHistory.forEach(function (p, i) { arr[i] = p.pct; });
       charts['ch-poll'].data.datasets[0].data = arr;
+      // rebuild if the track mode changed (dualTrack toggles dataset count)
+      if (st.dualTrack && charts['ch-poll'].data.datasets.length === 2) { makePollChart(); return; }
+      if (!st.dualTrack && charts['ch-poll'].data.datasets.length === 3) { makePollChart(); return; }
+      if (st.dualTrack && SCENARIO_2016) {
+        charts['ch-poll'].data.datasets[1].data = SCENARIO_2016.polling.republican.slice(0, want);
+        charts['ch-poll'].data.datasets[2].data = SCENARIO_2016.polling.democrat.slice(0, want);
+      }
       charts['ch-poll'].update('none');
     }
   }
@@ -901,19 +1194,52 @@
     renderBudget();
     renderNetwork();
     renderParty();
+    renderInfluence();
     renderReport();
     updateCharts();
   }
 
-  function newGame() {
-    st = E.createGame();
+  /* ---- scenario picker (v0.4) ---- */
+  var scenarioPickInited = false;
+  function buildScenarioPicker() {
+    var box = $('scenario-cards');
+    box.innerHTML = '';
+    if (!SCENARIOS) return;
+    Object.keys(SCENARIOS).forEach(function (id) {
+      var sc = SCENARIOS[id];
+      var card = el('button', 'text-left border border-stone-300 rounded-lg p-4 hover:border-teal-600 hover:bg-teal-50 transition-colors');
+      var badge = sc.dualTrack ? '<span class="badge bg-indigo-700 text-white !text-[10px]">DUAL-TRACK</span>' : '<span class="badge bg-stone-500 text-white !text-[10px]">CLASSIC</span>';
+      card.innerHTML = '<div class="flex items-center justify-between mb-1"><span class="font-bold text-stone-800">' + esc(sc.name) + '</span>' + badge + '</div>' +
+        '<p class="text-[11px] text-stone-500 leading-snug">' + esc(sc.tagline) + '</p>';
+      card.addEventListener('click', function () {
+        $('scenario-modal').classList.add('hidden');
+        newGame(id);
+      });
+      box.appendChild(card);
+    });
+  }
+  function openScenarioPicker(cancellable) {
+    buildScenarioPicker();
+    $('scenario-cancel').classList.toggle('hidden', !cancellable);
+    $('scenario-modal').classList.remove('hidden');
+  }
+  $('scenario-cancel').addEventListener('click', function () { $('scenario-modal').classList.add('hidden'); });
+
+  function newGame(scenarioId) {
+    st = E.createGame(scenarioId);
     previewFx = null;
     $('overlay').classList.add('hidden');
     buildPolicyCards();
     buildBudgetRows();
     renderPreloaded();
+    buildActTimelines();
+    buildCharts();
     render();
-    toast('New game — your party takes office in Q1 2008, amid the Global Financial Crisis.');
+    if (scenarioId === 'realign2016') {
+      toast('The Realignment — Q4 2016. A new party with 5 House seats, 1 Senate seat, 3 governors and $300M. SIM shows what a mandate would do; ACTUAL nudges run underneath.');
+    } else {
+      toast('New game — your party takes office in Q1 2008, amid the Global Financial Crisis.');
+    }
   }
 
   $('btn-next').addEventListener('click', function () {
@@ -929,13 +1255,15 @@
       toast('🗳️ Midterms ' + m.year + ': House ' + (m.dHouse >= 0 ? '+' : '') + m.dHouse + ', Senate ' + (m.dSenate >= 0 ? '+' : '') + m.dSenate + '.');
     }
   });
-  $('btn-new').addEventListener('click', function () { newGame(); });
+  $('btn-new').addEventListener('click', function () { openScenarioPicker(true); });
 
   /* ---------------- init ---------------- */
   buildPolicyCards();
   buildBudgetRows();
   renderPreloaded();
+  buildActTimelines();
   buildCharts();
   render();
   startTicker();
+  openScenarioPicker(false);
 })();
