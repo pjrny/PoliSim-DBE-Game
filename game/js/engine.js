@@ -1,23 +1,16 @@
 /* ============================================================================
-   PoliSim-DBE — engine.js  (v0.4)
-   Pure simulation. No DOM access; safe for Node (`module.exports`) and browser
-   (window.ENGINE). Everything the UI renders comes from here.
-   Turn = 1 quarter. Deterministic (no RNG) except campaign action labels.
-
-   v0.4: scenario system (GFC 2008 classic / The Realignment 2016 dual-track),
-   era-aware election & interest constants, budget sub-departments (child
-   sliders, delete/restore), Act repeal (effects ramp off in reverse),
-   ACTUAL-track Influence nudges, scripted-actual turn advance.
+   PoliSim-DBE — engine.js  (v0.3)
+   Pure simulation logic. No DOM access. Works in browser (window.ENGINE)
+   and in Node (module.exports) for testing.
    ========================================================================== */
 (function (root, factory) {
   var E = factory(root);
-  if (typeof module === 'object' && module.exports) module.exports = E;
   root.ENGINE = E;
-}(typeof self !== 'undefined' ? self : this, function (root) {
+  if (typeof module !== 'undefined' && module.exports) module.exports = E;
+})(typeof window !== 'undefined' ? window : globalThis, function (root) {
   'use strict';
 
-  /* ---- config (injected by data.js; Node tests can require data.js first) ---- */
-  var HISTORY = root.HISTORY;
+  var H = root.HISTORY;
   var POLICIES = root.POLICY_DEFS;
   var VG = root.VOTER_GROUPS;
   var EV = root.EVENTS;
@@ -26,378 +19,434 @@
   var NETDEF = root.NETWORK_DEF || [];
   var SCENARIOS = root.SCENARIOS || null;
 
-  /* ---- small helpers ---- */
-  function clamp(x, lo, hi) { return Math.max(lo, Math.min(hi, x)); }
-  function round(x, d) { var p = Math.pow(10, d || 2); return Math.round(x * p) / p; }
-  function lerp(a, b, t) { return a + (b - a) * t; }
+  /* ---- scenario helpers (v0.4) ---- */
+  function scenarioOf(st) {
+    if (st && st.scenario && SCENARIOS && SCENARIOS[st.scenario]) return SCENARIOS[st.scenario];
+    return null;
+  }
+  function scenarioStart(sc) {
+    if (sc.start) return sc.start;
+    return (EV.start && EV.start.turn !== undefined) ? EV.start : null;
+  }
+  function scenarioEvent(sc) {
+    var evId = (sc && sc.event) || 'gfc';
+    return (EV[evId] && EV[evId].shocks) ? EV[evId] : (EV.gfc || { shocks: {}, unempShock: {}, outlayShock: {} });
+  }
+  // clock: turn t≥1 → clockYear + floor((t−1)/4); scenario start may open on a
+  // display quarter (e.g. Q4 2016) before the running clock begins at Q1 2017.
+  function clockYearOf(st) {
+    var sc = scenarioOf(st), s = sc ? scenarioStart(sc) : EV.start;
+    return (s && (s.clockYear || s.year)) || 2008;
+  }
+  function turnToYear(st, t) { return clockYearOf(st) + Math.floor((t - 1) / 4); }
+  function turnToQuarter(t) { return ((t - 1) % 4) + 1; }
 
-  var DET_IDS = ['education', 'innovation', 'competitiveness', 'military', 'trade', 'output', 'fincenter', 'reserve_fx'];
-  var GROUP_IDS = ['workers', 'capitalists', 'youth', 'seniors', 'religious', 'immigrants', 'technocrats'];
+  function clamp(x, lo, hi) { return Math.max(lo, Math.min(hi, x)); }
+  function round(x, d) { var m = Math.pow(10, d || 2); return Math.round(x * m) / m; }
 
   var POLICY_MAP = {};
-  POLICIES.forEach(function (d) { POLICY_MAP[d.id] = d; });
+  POLICIES.forEach(function (p) { POLICY_MAP[p.id] = p; });
+  var GROUP_IDS = Object.keys(VG.weights);
+  var DET_IDS = ['education', 'innovation', 'competitiveness', 'military', 'trade', 'output', 'fincenter', 'reserve_fx'];
+  var NOM_GDP_2008 = 14608.209; // FRED GDP 2008 — budget baselines are $bn of this year
+
+  function getOption(def, val) {
+    for (var i = 0; i < def.options.length; i++) if (def.options[i].id === val) return def.options[i];
+    return def.options[0];
+  }
+  function optionLag(def, val) {
+    if (def.kind === 'slider') return def.lag;
+    var o = getOption(def, val);
+    return o.lag || def.lag;
+  }
+
+  /* ---- election timing (per-scenario; defaults = gfc2008: presidentials 20/36/52..., midterms 12/28/44...) ---- */
+  function electConsts(st) {
+    var sc = scenarioOf(st);
+    return {
+      E0: (sc && sc.electionStart) || EV.electionStart || 20,
+      ECYC: (sc && sc.electionCycle) || EV.electionCycle || 16,
+      M0: (sc && sc.midtermStart) || EV.midtermStart || 12
+    };
+  }
+  function isPresElectionT(st, t) { var c = electConsts(st); return t >= c.E0 && (t - c.E0) % c.ECYC === 0; }
+  function isMidtermT(st, t) { var c = electConsts(st); return t >= c.M0 && (t - c.M0) % c.ECYC === 0; }
+  function nextPresElectionT(st, t) { var c = electConsts(st), e = c.E0; while (e <= t) e += c.ECYC; return e; }
+  function isPresElection(t) { return isPresElectionT(null, t); }
+  function isMidterm(t) { return isMidtermT(null, t); }
+  function nextPresElection(t) { return nextPresElectionT(null, t); }
+  function campaignOpen(st) {
+    // campaign window = turns (e−3)..e around each presidential election
+    var c = electConsts(st), t = st.turn;
+    if (t < c.E0 - 3) return false;
+    var m = (t - c.E0) % c.ECYC; if (m < 0) m += c.ECYC;
+    return m >= c.ECYC - 3 || m === 0;
+  }
+
+  /* ---- news source (window.NEWS injected by js/news.js; defensive fallback) ---- */
+  var NEWS_BUILTIN = {
+    turns: {},
+    generic: {
+      h: [
+        'Fed officials signal patience as lawmakers debate the federal budget outlook.',
+        'Economists remain split on the durability of the recovery, citing housing and credit conditions.',
+        'Statehouses advance a patchwork of zoning, health and sentencing bills across the country.',
+        'Pollsters report a restless electorate ahead of the next federal election cycle.',
+        'Treasury yields steady as investors weigh deficit trajectories and growth data.'
+      ],
+      s: [
+        '"another quarter, another promise. wake me when wages move 🙃 #MainStreet"',
+        '"my rent went up AGAIN. do something about housing!! #HousingCrisis"',
+        '"GDP line go up, my paycheck line go sideways. make it make sense."',
+        '"just paid $9 for a latte but apparently inflation is \'contained\' lol"',
+        '"can we get ONE infrastructure bill that actually builds something? #DoSomething"'
+      ]
+    },
+    actReacts: {}
+  };
+  function newsSrc() {
+    return (typeof root.NEWS !== 'undefined' && root.NEWS) ? root.NEWS : NEWS_BUILTIN;
+  }
+  function histNews(st) {
+    var turn = st.turn;
+    var N = newsSrc(), out = [];
+    // v0.4: scenario-scoped news feed (The Realignment has its own 2017+ era feed)
+    var sc = scenarioOf(st);
+    var scn = (sc && sc.id && N.scenarios && N.scenarios[sc.id]) ? N.scenarios[sc.id] : null;
+    var tn = scn ? ((scn.turns && scn.turns[String(turn)]) || null)
+                 : ((N.turns && N.turns[String(turn)]) || null);
+    var hs = (tn && tn.h && tn.h.length) ? tn.h
+           : ((scn && scn.generic && scn.generic.h && scn.generic.h.length) ? scn.generic.h
+           : ((N.generic && N.generic.h && N.generic.h.length) ? N.generic.h : NEWS_BUILTIN.generic.h));
+    var ss = (tn && tn.s && tn.s.length) ? tn.s
+           : ((scn && scn.generic && scn.generic.s && scn.generic.s.length) ? scn.generic.s
+           : ((N.generic && N.generic.s && N.generic.s.length) ? N.generic.s : NEWS_BUILTIN.generic.s));
+    // 1–2 historical items + 1 social post per turn (deterministic rotation)
+    out.push({ lane: 'hist', text: hs[turn % hs.length] });
+    if (hs.length > 1 && turn % 3 === 0) out.push({ lane: 'hist', text: hs[(turn + 1) % hs.length] });
+    out.push({ lane: 'social', text: ss[turn % ss.length] });
+    return out;
+  }
+
+  /* ---- group deltas for slider policies (per-unit-of-value, from config) ---- */
+  function sliderGroupDelta(def, value) {
+    var n = (value - def.min) / (def.max - def.min);
+    var out = {};
+    if (def.id === 'tax' && n > 0.3) { out.workers = -8 * n; out.seniors = -4 * n; out.capitalists = 4 * n; out.technocrats = 2 * n; }
+    if (def.id === 'tariffs') { out.workers = 6 * n; out.capitalists = -6 * n; out.technocrats = -4 * n; }
+    if (def.id === 'infra') { out.workers = 5 * n; out.technocrats = 3 * n; out.capitalists = -2 * n; }
+    return out;
+  }
+
+  function optionGroups(def, value) {
+    if (def.kind === 'slider') return sliderGroupDelta(def, value);
+    return (getOption(def, value).groups) || {};
+  }
+
+  /* ---- political capital cost of a change ---- */
+  function changeCost(def, from, to) {
+    if (from === to) return 0;
+    if (def.kind === 'slider') {
+      var steps = Math.abs(to - from) / def.step;
+      return clamp(Math.round(steps * def.pcPerStep), def.minPc, def.maxPc);
+    }
+    return getOption(def, to).pc;
+  }
+
+  /* ---- party → political capital capacity ----
+     Dual-track scenarios (v0.4): SIM-track PC is sized to the shadow caucus
+     (what a governing mandate would look like), never to the tiny real party. */
+  function pcStats(st) {
+    var sc = scenarioOf(st);
+    var p = (sc && sc.dualTrack && st.shadowParty) ? st.shadowParty : st.party;
+    return {
+      cap: 60 + 0.4 * (p.house + p.senate),
+      regen: 4 + p.house / 435 * 4 + p.senate / 100 * 3 + p.governors / 50 * 2 + (p.president ? 2 : 0)
+    };
+  }
+
+  /* ---- budget categories ---- */
   var BUDGET_MAP = {};
   BUDGET.forEach(function (c) { BUDGET_MAP[c.id] = c; });
   var SECTOR_MAP = {};
   SECTORS.forEach(function (s) { SECTOR_MAP[s.id] = s; });
 
-  function getOption(def, id) {
-    for (var i = 0; i < def.options.length; i++) if (def.options[i].id === id) return def.options[i];
-    return def.options[0];
-  }
-  /* fx of a policy at its current (possibly mid-ramp) setting — static full-strength fx;
-     ramp multipliers applied by callers. Sliders: computed per unit. */
-  function optionGroups(def, idOrVal) {
-    if (def.kind === 'slider') return {};                 // slider group drift is per-point, handled in aggregate
-    var o = getOption(def, idOrVal);
-    return o.groups || {};
-  }
-  function optionLag(def, idOrVal) {
-    if (def.kind === 'slider') return def.lag || 2;
-    var o = getOption(def, idOrVal);
-    return o.lag || def.lag || 2;
-  }
-  function optionUpkeep(def, idOrVal) {
-    if (def.kind === 'slider') return null;
-    var o = getOption(def, idOrVal);
-    return o.upkeep || null;
+  function catSharePct(cat) { return cat.base_bn / NOM_GDP_2008 * 100; } // % of GDP at mult 1
+
+  function interestShare(st) {
+    // effective average interest rate on the debt stock (auto, non-editable);
+    // scenarios may carry an era-calibrated interest model (v0.4: 2016)
+    var ic = (scenarioOf(st) && scenarioStart(scenarioOf(st)).interest) || { base: 2.7, knee: 90, slope: 0.05 };
+    var rEff = ic.base + Math.max(0, st.debt_gdp - ic.knee) * ic.slope;
+    return st.debt_gdp * rEff / 100; // % of GDP
   }
 
-  /* change cost in Political Capital */
-  function changeCost(def, fromVal, toVal) {
-    if (fromVal === toVal) return 0;
-    if (def.kind === 'slider') {
-      var steps = Math.abs(toVal - fromVal) / def.step;
-      return clamp(Math.round(steps * def.pcPerStep), def.minPc || 5, def.maxPc || 25);
-    }
-    var o = getOption(def, toVal);
-    return o.pc != null ? o.pc : 10;
-  }
-
-  /* ============================================================================
-     BUDGET MODEL (v0.3) — 15 categories, FY2008 baseline, NIPA-ish.
-     Category multiplier mult (default 1, slider 0–200%, deleted = 0).
-     Outlay share of each category = share of GDP at baseline × mult.
-     Acts (outlay%/revAdd%/VAT/tariffs) add on top; interest is automatic.
-     ========================================================================== */
-  var GDP0 = 14608.209; // 2008 nominal GDP ($bn) — anchor for category baseline shares
-
-  function catSharePct(c) { return c.base_bn / GDP0 * 100; }  // baseline % of GDP
-  function catMult(st, c) { return st.budget.deleted[c.id] ? 0 : (st.budget.mult[c.id] != null ? st.budget.mult[c.id] : 1); }
-
-  /* v0.4 sub-departments: parent multiplier = baseline-weighted mean of
-     surviving children. Parent edits clear sub overrides; sub edits (and child
-     deletion) feed the parent automatically. Deleted children contribute 0 to
-     the numerator while their baseline stays in the denominator. */
-  function parentMultFromSubs(st, cat) {
-    var subs = st.budget.subs[cat.id] || {};
-    var dels = st.budget.subDeleted[cat.id] || {};
-    var num = 0, den = 0;
-    cat.sub.forEach(function (sd) {
-      den += sd.base_bn;
-      var m = dels[sd.id] ? 0 : (subs[sd.id] != null ? subs[sd.id] : 1);
-      num += sd.base_bn * m;
-    });
-    return den ? num / den : 1;
-  }
-
-  /* effects of budget deviations (per +10% deviation semantics in data.js) */
+  /* budget-driven effects: category deviations from baseline + added sectors */
   function budgetEffects(st) {
-    var out = { demand: 0, homelessPct: 0, odPct: 0, incarcPct: 0, det: {}, groupDrift: {} };
-    DET_IDS.forEach(function (d) { out.det[d] = 0; });
-    GROUP_IDS.forEach(function (g) { out.groupDrift[g] = 0; });
+    var fx = { demand: 0, homelessPct: 0, odPct: 0, incarcPct: 0, det: {}, groupDrift: {} };
+    DET_IDS.forEach(function (d) { fx.det[d] = 0; });
+    GROUP_IDS.forEach(function (g) { fx.groupDrift[g] = 0; });
+    function acc(f, scale) {
+      if (!f) return;
+      fx.demand += (f.demand || 0) * scale;
+      fx.homelessPct += (f.homelessPct || 0) * scale;
+      fx.odPct += (f.odPct || 0) * scale;
+      fx.incarcPct += (f.incarcPct || 0) * scale;
+      if (f.det) DET_IDS.forEach(function (d) { fx.det[d] += (f.det[d] || 0) * scale; });
+      if (f.groups) GROUP_IDS.forEach(function (g) { fx.groupDrift[g] += (f.groups[g] || 0) * scale; });
+    }
     BUDGET.forEach(function (c) {
       if (c.locked) return;
-      var dev = (catMult(st, c) - 1) * 10; // in units of 10%
-      if (!dev) return;
-      var f = c.fx || {};
-      out.demand += (f.demand || 0) * dev;
-      out.homelessPct += (f.homelessPct || 0) * dev;
-      out.odPct += (f.odPct || 0) * dev;
-      out.incarcPct += (f.incarcPct || 0) * dev;
-      if (f.det) DET_IDS.forEach(function (d) { out.det[d] += (f.det[d] || 0) * dev; });
-      if (f.groups) GROUP_IDS.forEach(function (g) { out.groupDrift[g] += (f.groups[g] || 0) * dev; });
-      // v0.4: child-only additive fx scale with that child's own deviation
-      if (c.sub) {
-        var subs = st.budget.subs[c.id] || {};
-        var dels = st.budget.subDeleted[c.id] || {};
-        c.sub.forEach(function (sd) {
-          if (!sd.fx || dels[sd.id]) return;
-          var sdev = ((subs[sd.id] != null ? subs[sd.id] : 1) - 1) * 10;
-          if (!sdev) return;
-          var sf = sd.fx;
-          out.demand += (sf.demand || 0) * sdev;
-          out.homelessPct += (sf.homelessPct || 0) * sdev;
-          out.odPct += (sf.odPct || 0) * sdev;
-          out.incarcPct += (sf.incarcPct || 0) * sdev;
-          if (sf.det) DET_IDS.forEach(function (d) { out.det[d] += (sf.det[d] || 0) * sdev; });
-          if (sf.groups) GROUP_IDS.forEach(function (g) { out.groupDrift[g] += (sf.groups[g] || 0) * sdev; });
-        });
-      }
+      var dev = (catMult(st, c) - 1) * 10; // units of +10%
+      if (dev !== 0) acc(c.fx, dev * subFxScale(st, c)); // child deletions weaken the parent fx
+      var own = subOwnFx(st, c); // child-only effects, additive on top
+      if (own) acc(own, 1);
     });
-    // added sectors: fx100 at mult=1
     st.sectors.forEach(function (s) {
       var def = SECTOR_MAP[s.id];
-      if (!def) return;
-      var f = def.fx100 || {};
-      var m = s.mult;
-      out.demand += (f.demand || 0) * m;
-      out.homelessPct += (f.homelessPct || 0) * m;
-      out.odPct += (f.odPct || 0) * m;
-      out.incarcPct += (f.incarcPct || 0) * m;
-      if (f.det) DET_IDS.forEach(function (d) { out.det[d] += (f.det[d] || 0) * m; });
-      if (f.groups) GROUP_IDS.forEach(function (g) { out.groupDrift[g] += (f.groups[g] || 0) * m; });
+      if (def) acc(def.fx100, s.mult);
     });
-    return out;
+    return fx;
   }
 
-  /* full budget computation for a turn.
-     fx: aggregated act effects. crisisOutlay: extra % of GDP (automatic stabilizers). */
-  function computeBudget(st, fx, crisisOutlay) {
+  /* full budget computation: lines, totals (all $bn), shares (% of GDP) */
+  function computeBudget(st, fxActs, crisisOutlay) {
     var g = st.gdp_nominal;
-    var outlay_share = 0;
     var lines = [];
+    var outBn = 0;
     BUDGET.forEach(function (c) {
-      var share, mult;
-      if (c.locked) {
-        var r = effectiveRate(st);
-        share = st.debt_gdp * r / 100; // net interest ≈ debt × effective rate
+      var share, mult, locked = !!c.locked;
+      if (locked) {
+        share = interestShare(st);
         mult = share / catSharePct(c);
       } else {
         mult = catMult(st, c);
         share = catSharePct(c) * mult;
       }
-      outlay_share += share;
-      var line = { id: c.id, name: c.name, mult: mult, share: share, bn: share / 100 * g, locked: !!c.locked, deleted: !!st.budget.deleted[c.id] };
-      if (c.sub) {
-        var subs = st.budget.subs[c.id] || {};
-        var dels = st.budget.subDeleted[c.id] || {};
-        line.subs = c.sub.map(function (sd) {
-          var sm = dels[sd.id] ? 0 : (subs[sd.id] != null ? subs[sd.id] : 1);
-          var sshare = (sd.base_bn / GDP0 * 100) * sm;
-          return { id: sd.id, name: sd.name, mult: sm, share: sshare, bn: sshare / 100 * g, deleted: !!dels[sd.id] };
+      var bn = share / 100 * g;
+      outBn += bn;
+      var line = { id: c.id, name: c.name, bn: bn, share: share, mult: mult, locked: locked, deleted: !!st.budget.deleted[c.id] };
+      var subs = catSubs(c);
+      if (subs) {
+        var saved = st.budget.subs[c.id] || {};
+        var dels = (st.budget.subDeleted && st.budget.subDeleted[c.id]) || {};
+        var subBaseSum = subs.reduce(function (a, x) { return a + x.base_bn; }, 0);
+        line.subs = subs.map(function (sd) {
+          var m = dels[sd.id] ? 0 : (saved[sd.id] !== undefined ? saved[sd.id] : 1);
+          return {
+            id: sd.id, name: sd.name, mult: m, deleted: !!dels[sd.id],
+            bn: catSharePct(c) * (sd.base_bn / subBaseSum) * m * mult / 100 * g,
+            fxShare: sd.fxShare || 0, fx: sd.fx || null, last: false
+          };
         });
+        if (line.subs.length) line.subs[line.subs.length - 1].last = true;
       }
       lines.push(line);
     });
-    var catOutlayShare = outlay_share;
-    var interestShare = lines.filter(function (l) { return l.locked; }).reduce(function (a, l) { return a + l.share; }, 0);
-    // added sectors
-    var sectorShare = 0;
     st.sectors.forEach(function (s) {
       var def = SECTOR_MAP[s.id];
-      if (def) sectorShare += def.gdpPct * s.mult;
+      if (!def) return;
+      var share = def.gdpPct * s.mult;
+      var bn = share / 100 * g;
+      outBn += bn;
+      lines.push({ id: s.id, name: def.name, bn: bn, share: share, mult: s.mult, locked: false, sector: true });
     });
-    outlay_share += sectorShare;
-    // act outlays (fx.outlay is % of GDP at current ramp; sliders add directly)
-    var actOutlay = fx.outlay;
-    outlay_share += actOutlay + (crisisOutlay || 0);
-    // receipts: baseline 17.5% + VAT + tariffs (Laffer-saturated) + act revAdd
-    var tariffRev = 0.35 * fx.tariff * (10 / Math.max(10, fx.tariff)); // saturation above 10%
-    var revenue_share = 17.5 + 4.5 * fx.vat + tariffRev + fx.revAdd;
-    var outlays_bn = outlay_share / 100 * g;
-    var revenue_bn = revenue_share / 100 * g;
+    var actOutlayBn = (fxActs ? fxActs.outlay : 0) / 100 * g;
+    var crisisBn = (crisisOutlay || 0) / 100 * g;
+    outBn += actOutlayBn + crisisBn;
+    var tariffRevPerPt = 0.35 * 10 / Math.max(10, fxActs ? fxActs.tariff : 0); // Laffer saturation above 10%
+    var revShare = 17.5 + (fxActs ? fxActs.vat * 4.5 : 0) + (fxActs ? tariffRevPerPt * fxActs.tariff : 0) + (fxActs ? fxActs.revAdd : 0);
+    var revBn = revShare / 100 * g;
     return {
       lines: lines,
-      outlay_share: outlay_share,
-      revenue_share: revenue_share,
-      outlays_bn: outlays_bn,
-      revenue_bn: revenue_bn,
-      deficit_bn: outlays_bn - revenue_bn,
-      interest_bn: interestShare / 100 * g,
-      act_outlays_bn: actOutlay / 100 * g,
-      cat_outlays_bn: catOutlayShare / 100 * g
+      outlays_bn: outBn, revenue_bn: revBn, deficit_bn: outBn - revBn,
+      outlay_share: outBn / g * 100, revenue_share: revShare,
+      interest_bn: interestShare(st) / 100 * g,
+      act_outlays_bn: actOutlayBn, crisis_bn: crisisBn
     };
   }
-  function effectiveRate(st) {
-    var sc = scenarioOf(st);
-    var ir = sc && scenarioStart(sc).interest;
-    if (ir) return ir.base + Math.max(0, st.debt_gdp - ir.knee) * ir.slope;
-    return 2.7 + Math.max(0, st.debt_gdp - 90) * 0.05;
-  }
 
-  /* delete a budget category (10 PC, backlash, spending power lost) */
-  function deleteBudgetCat(st, catId) {
-    if (st.over) return { ok: false, msg: 'Game is over.' };
-    var cat = BUDGET_MAP[catId];
-    if (!cat) return { ok: false, msg: 'Unknown budget category.' };
-    if (cat.locked) return { ok: false, msg: 'Net interest is automatic — set by debt and rates. It cannot be edited.' };
-    if (st.budget.deleted[catId]) return { ok: false, msg: cat.name + ' is already deleted.' };
-    var cost = 10;
-    if (st.pc < cost) return { ok: false, msg: 'Not enough Political Capital (need ' + cost + ', have ' + Math.floor(st.pc) + ').' };
-    st.pc -= cost;
-    st.budget.deleted[catId] = true;
-    st.budget.mult[catId] = 0;
-    var back = cat.backlash || {};
-    GROUP_IDS.forEach(function (g) {
-      if (back[g]) st.approval[g] = clamp(st.approval[g] + back[g], 0, 100);
-    });
-    st.pendingLog.push('Budget: ' + cat.name + ' DELETED (−' + cost + ' PC). Backlash: ' +
-      (Object.keys(back).map(function (g) { return VG.labels[g] + ' ' + back[g]; }).join(', ') || 'none') + '.');
-    return { ok: true, msg: cat.name + ' deleted (−' + cost + ' PC)' };
-  }
-
-  /* set a budget category multiplier (slider 0–200%, 10% steps, 2 PC per 10%) */
   function applyBudget(st, catId, newMult) {
     if (st.over) return { ok: false, msg: 'Game is over.' };
     var cat = BUDGET_MAP[catId];
     if (!cat) return { ok: false, msg: 'Unknown budget category.' };
-    if (cat.locked) return { ok: false, msg: 'Net interest is automatic — set by debt and rates. It cannot be edited.' };
-    if (st.budget.deleted[catId]) return { ok: false, msg: cat.name + ' is deleted.' };
-    newMult = clamp(round(newMult, 2), 0, 2);
-    var cur = catMult(st, cat);
-    if (Math.abs(newMult - cur) < 1e-9) return { ok: false, msg: 'No change.' };
-    var steps = Math.abs(newMult - cur) * 10;
-    var cost = Math.max(2, Math.round(steps * 2));
+    if (cat.locked) return { ok: false, msg: 'Interest is automatic (debt-driven) and cannot be edited.' };
+    newMult = clamp(Math.round(Number(newMult) * 10) / 10, 0, 2);
+    var old = st.budget.mult[catId] !== undefined ? st.budget.mult[catId] : 1;
+    if (newMult === old) return { ok: false, msg: 'No change.' };
+    var cost = 2 * Math.round(Math.abs(newMult - old) * 10); // 2 PC per 10% change
     if (st.pc < cost) return { ok: false, msg: 'Not enough Political Capital (need ' + cost + ', have ' + Math.floor(st.pc) + ').' };
     st.pc -= cost;
     st.budget.mult[catId] = newMult;
-    st.budget.subs[catId] = {}; // parent moves all children in lockstep
+    if (newMult > 0) st.budget.deleted[catId] = false;
+    // v0.4: parent slider scales sub-departments in lockstep; child overrides
+    // from before this move are stale and cleared.
+    var subs = catSubs(cat);
+    if (subs) {
+      st.budget.subs[catId] = {};
+      st.budget.subDeleted[catId] = {};
+    }
     st.pendingLog.push('Budget: ' + cat.name + ' → ' + Math.round(newMult * 100) + '% of baseline (−' + cost + ' PC).');
-    return { ok: true, msg: cat.name + ' → ' + Math.round(newMult * 100) + '% (−' + cost + ' PC)' };
+    return { ok: true, msg: cat.name + ' → ' + Math.round(newMult * 100) + '% of baseline (−' + cost + ' PC)' };
   }
 
-  /* v0.4: set a SUB-DEPARTMENT multiplier (child slider 0–200% of own base,
-     1 PC per 10% moved, min 2). Parent multiplier recomputed automatically. */
-  function applyBudgetSub(st, catId, subId, newMult) {
+  function deleteBudgetCat(st, catId) {
     if (st.over) return { ok: false, msg: 'Game is over.' };
     var cat = BUDGET_MAP[catId];
     if (!cat) return { ok: false, msg: 'Unknown budget category.' };
-    if (cat.locked) return { ok: false, msg: 'Net interest is automatic — set by debt and rates. It cannot be edited.' };
-    if (st.budget.deleted[catId]) return { ok: false, msg: cat.name + ' is deleted.' };
-    if (!cat.sub) return { ok: false, msg: cat.name + ' has no sub-departments.' };
+    if (cat.locked) return { ok: false, msg: 'Interest is automatic (debt-driven) and cannot be deleted.' };
+    if (st.budget.deleted[catId]) return { ok: false, msg: cat.name + ' is already zeroed out.' };
+    var cost = 10;
+    if (st.pc < cost) return { ok: false, msg: 'Not enough Political Capital (need ' + cost + ', have ' + Math.floor(st.pc) + ').' };
+    st.pc -= cost;
+    st.budget.mult[catId] = 0;
+    st.budget.deleted[catId] = true;
+    st.budget.subs[catId] = {};       // parent deletion zeroes the whole accordion
+    st.budget.subDeleted[catId] = {};
+    if (cat.backlash) {
+      var delta = {};
+      GROUP_IDS.forEach(function (g) { delta[g] = cat.backlash[g] || 0; });
+      st.groupQueue.push({ delta: delta, remaining: 2, total: 2 });
+    }
+    st.pendingLog.push('Budget: ' + cat.name + ' DELETED (−' + cost + ' PC) — affected constituencies are furious.');
+    return { ok: true, msg: cat.name + ' deleted (−' + cost + ' PC, backlash incoming)' };
+  }
+
+  /* ---- v0.4 sub-departments: editable child lines under a budget category ----
+     st.budget.subs[catId] = { subId: mult }   (mult 0–2 of the child's own base;
+     absent entry = 1.0. Deletions live in st.budget.subDeleted[catId][subId].)
+     Parent multiplier = base-weighted mean of surviving children, so child edits
+     flow into the parent total and the whole budget. Deleting a child costs 5 PC,
+     shrinks the parent fx by the child's fxShare, and backlash × fxShare. */
+  function catSubs(cat) { return (cat && cat.sub) ? cat.sub : null; }
+  function catMult(st, cat) {
+    var mult = st.budget.mult[cat.id];
+    if (mult !== undefined) return mult;
+    return parentMultFromSubs(st, cat);
+  }
+  function parentMultFromSubs(st, cat) {
+    var subs = catSubs(cat);
+    if (!subs) return 1;
+    var num = 0, den = 0;
+    var saved = st.budget.subs[cat.id] || {};
+    var dels = (st.budget.subDeleted && st.budget.subDeleted[cat.id]) || {};
+    subs.forEach(function (sd) {
+      den += sd.base_bn;           // the parent's full baseline is the denominator
+      if (dels[sd.id]) return;     // deleted children contribute nothing to the top line
+      var m = saved[sd.id] !== undefined ? saved[sd.id] : 1;
+      num += sd.base_bn * m;
+    });
+    return den > 0 ? num / den : 0;
+  }
+  function applyBudgetSub(st, catId, subId, newMult) {
+    if (st.over) return { ok: false, msg: 'Game is over.' };
+    var cat = BUDGET_MAP[catId];
+    var subs = catSubs(cat);
+    if (!subs) return { ok: false, msg: cat ? cat.name + ' has no sub-departments.' : 'Unknown budget category.' };
     var sd = null;
-    cat.sub.forEach(function (x) { if (x.id === subId) sd = x; });
+    subs.forEach(function (x) { if (x.id === subId) sd = x; });
     if (!sd) return { ok: false, msg: 'Unknown sub-department.' };
-    if (st.budget.subDeleted[catId] && st.budget.subDeleted[catId][subId]) return { ok: false, msg: sd.name + ' is deleted.' };
-    newMult = clamp(round(newMult, 2), 0, 2);
-    var subs = st.budget.subs[catId] || {};
-    var cur = subs[subId] != null ? subs[subId] : 1;
-    if (Math.abs(newMult - cur) < 1e-9) return { ok: false, msg: 'No change.' };
-    var steps = Math.abs(newMult - cur) * 10;
-    var cost = Math.max(2, Math.round(steps * 1));
+    var dels = st.budget.subDeleted[catId] || {};
+    if (dels[subId]) return { ok: false, msg: sd.name + ' is deleted; restore the parent line first.' };
+    newMult = clamp(Math.round(Number(newMult) * 10) / 10, 0, 2);
+    var saved = st.budget.subs[catId] || {};
+    var old = saved[subId] !== undefined ? saved[subId] : 1;
+    if (newMult === old) return { ok: false, msg: 'No change.' };
+    var cost = Math.max(2, Math.round(Math.abs(newMult - old) * 10)); // 1 PC per 10%, min 2
     if (st.pc < cost) return { ok: false, msg: 'Not enough Political Capital (need ' + cost + ', have ' + Math.floor(st.pc) + ').' };
     st.pc -= cost;
     if (!st.budget.subs[catId]) st.budget.subs[catId] = {};
     st.budget.subs[catId][subId] = newMult;
     st.budget.mult[catId] = parentMultFromSubs(st, cat);
-    st.pendingLog.push('Budget: ' + cat.name + ' ▸ ' + sd.name + ' → ' + Math.round(newMult * 100) + '% of its baseline (−' + cost + ' PC); parent now ' + Math.round(st.budget.mult[catId] * 100) + '%.');
+    if (newMult > 0) st.budget.deleted[catId] = false;
+    st.pendingLog.push('Budget: ' + cat.name + ' → ' + sd.name + ' at ' + Math.round(newMult * 100) + '% of its baseline (parent now ' + Math.round(st.budget.mult[catId] * 100) + '%) (−' + cost + ' PC).');
     return { ok: true, msg: sd.name + ' → ' + Math.round(newMult * 100) + '% (−' + cost + ' PC)' };
   }
-
-  /* v0.4: delete a SUB-DEPARTMENT (5 PC). Parent keeps its remaining children;
-     its effective multiplier drops by the child's baseline share, and the
-     parent's fx shrink by the child's fxShare (with backlash × fxShare). */
   function deleteBudgetSub(st, catId, subId) {
     if (st.over) return { ok: false, msg: 'Game is over.' };
     var cat = BUDGET_MAP[catId];
-    if (!cat) return { ok: false, msg: 'Unknown budget category.' };
-    if (cat.locked) return { ok: false, msg: 'Net interest is automatic — set by debt and rates. It cannot be edited.' };
-    if (st.budget.deleted[catId]) return { ok: false, msg: cat.name + ' is deleted.' };
-    if (!cat.sub) return { ok: false, msg: cat.name + ' has no sub-departments.' };
-    var sd = null;
-    cat.sub.forEach(function (x) { if (x.id === subId) sd = x; });
+    var subs = catSubs(cat);
+    if (!subs) return { ok: false, msg: cat ? cat.name + ' has no sub-departments.' : 'Unknown budget category.' };
+    var sd = null, alive = 0;
+    subs.forEach(function (x) { if (x.id === subId) sd = x; });
+    var dels = st.budget.subDeleted[catId] || {};
+    subs.forEach(function (x) { if (!dels[x.id]) alive++; });
     if (!sd) return { ok: false, msg: 'Unknown sub-department.' };
-    if (!st.budget.subDeleted[catId]) st.budget.subDeleted[catId] = {};
-    if (st.budget.subDeleted[catId][subId]) return { ok: false, msg: sd.name + ' is already deleted.' };
+    if (dels[subId]) return { ok: false, msg: sd.name + ' is already deleted.' };
+    if (alive <= 1) return { ok: false, msg: 'Cannot delete the last sub-department of ' + cat.name + ' — delete the parent line instead.' };
     var cost = 5;
     if (st.pc < cost) return { ok: false, msg: 'Not enough Political Capital (need ' + cost + ', have ' + Math.floor(st.pc) + ').' };
     st.pc -= cost;
+    if (!st.budget.subDeleted[catId]) st.budget.subDeleted[catId] = {};
     st.budget.subDeleted[catId][subId] = true;
     if (st.budget.subs[catId]) delete st.budget.subs[catId][subId];
     st.budget.mult[catId] = parentMultFromSubs(st, cat);
-    var back = cat.backlash || {};
-    var share = sd.fxShare || 0;
-    GROUP_IDS.forEach(function (g) {
-      if (back[g]) st.approval[g] = clamp(st.approval[g] + back[g] * share, 0, 100);
+    if (cat.backlash && sd.fxShare) {
+      var delta = {};
+      GROUP_IDS.forEach(function (g) { delta[g] = (cat.backlash[g] || 0) * sd.fxShare; });
+      st.groupQueue.push({ delta: delta, remaining: 2, total: 2 });
+    }
+    st.pendingLog.push('Budget: ' + cat.name + ' → ' + sd.name + ' ELIMINATED (−' + cost + ' PC) — ' + cat.name + ' runs at ' + Math.round(st.budget.mult[catId] * 100) + '% and its effects are weakened.');
+    return { ok: true, msg: sd.name + ' eliminated (−' + cost + ' PC, ' + cat.name + ' weakened)' };
+  }
+  /* parent fx scale after child deletions: Σ fxShare of surviving children */
+  function subFxScale(st, cat) {
+    var subs = catSubs(cat);
+    if (!subs) return 1;
+    var dels = (st.budget.subDeleted && st.budget.subDeleted[cat.id]) || {};
+    var s = 0;
+    subs.forEach(function (sd) { if (!dels[sd.id]) s += sd.fxShare || 0; });
+    return s;
+  }
+  /* child-only additive fx, per +10% deviation of the child from its own base */
+  function subOwnFx(st, cat) {
+    var out = { demand: 0, homelessPct: 0, odPct: 0, incarcPct: 0, det: {}, groups: {} };
+    var subs = catSubs(cat);
+    if (!subs) return out;
+    var saved = st.budget.subs[cat.id] || {};
+    var dels = (st.budget.subDeleted && st.budget.subDeleted[cat.id]) || {};
+    subs.forEach(function (sd) {
+      if (!sd.fx || dels[sd.id]) return;
+      var m = saved[sd.id] !== undefined ? saved[sd.id] : 1;
+      var dev = (m - 1) * 10;
+      if (dev === 0) return;
+      var f = sd.fx;
+      out.demand += (f.demand || 0) * dev;
+      out.homelessPct += (f.homelessPct || 0) * dev;
+      out.odPct += (f.odPct || 0) * dev;
+      out.incarcPct += (f.incarcPct || 0) * dev;
+      if (f.det) Object.keys(f.det).forEach(function (d) { out.det[d] = (out.det[d] || 0) + f.det[d] * dev; });
+      if (f.groups) Object.keys(f.groups).forEach(function (g) { out.groups[g] = (out.groups[g] || 0) + f.groups[g] * dev; });
     });
-    st.pendingLog.push('Budget: ' + cat.name + ' ▸ ' + sd.name + ' DELETED (−' + cost + ' PC). Parent ' + cat.name + ' now at ' + Math.round(st.budget.mult[catId] * 100) + '%; its side-effects shrink by ' + Math.round(share * 100) + '%.');
-    return { ok: true, msg: sd.name + ' deleted (−' + cost + ' PC)' };
+    return out;
   }
 
-  /* add a new federal sector (one-time 8 PC) */
   function addSector(st, sectorId) {
     if (st.over) return { ok: false, msg: 'Game is over.' };
     var def = SECTOR_MAP[sectorId];
     if (!def) return { ok: false, msg: 'Unknown sector.' };
-    if (st.sectors.some(function (s) { return s.id === sectorId; })) return { ok: false, msg: def.name + ' already exists.' };
+    for (var i = 0; i < st.sectors.length; i++) if (st.sectors[i].id === sectorId) return { ok: false, msg: def.name + ' already created.' };
     var cost = 8;
     if (st.pc < cost) return { ok: false, msg: 'Not enough Political Capital (need ' + cost + ', have ' + Math.floor(st.pc) + ').' };
     st.pc -= cost;
     st.sectors.push({ id: sectorId, mult: 1 });
-    st.pendingLog.push('Budget: new federal sector created — ' + def.name + ' (' + def.gdpPct + '% of GDP baseline, −' + cost + ' PC).');
-    return { ok: true, msg: def.name + ' added (−' + cost + ' PC)' };
+    st.pendingLog.push('New federal sector created: ' + def.name + ' (' + def.gdpPct + '% of GDP baseline, −' + cost + ' PC).');
+    return { ok: true, msg: def.name + ' sector created (−' + cost + ' PC)' };
   }
 
-  /* ============================================================================
-     SCENARIOS (v0.4). Default = gfc2008. createGame('realign2016') builds the
-     dual-track state; createGame() / createGame('gfc2008') = the classic run.
-     ========================================================================== */
-  function scenarioOf(st) {
-    var id = st && st.scenario;
-    return (id && SCENARIOS && SCENARIOS[id]) ? SCENARIOS[id] : null;
-  }
-  function scenarioStart(sc) { return (sc && sc.start) || EV.start; }
-  /* era-aware clock: turn 1 = Q1 of clockYear (or scenario year+1 start) */
-  function clockYearOf(sc) {
-    if (!sc) return EV.start.clockYear || EV.start.year;
-    var s = scenarioStart(sc);
-    return s.clockYear || s.year;
-  }
-  function turnToYear(st, t) { return clockYearOf(scenarioOf(st)) + Math.floor((t - 1) / 4); }
-  function turnToQuarter(t) { return ((t - 1) % 4) + 1; }
-  function scenarioEvent(sc) { return EV[(sc && sc.event) || 'gfc'] || EV.gfc; }
-
-  /* ---- election timing (scenario-aware) ---- */
-  function electConsts(st) {
-    var sc = scenarioOf(st);
-    return {
-      start: (sc && sc.electionStart) || EV.electionStart || 20,
-      midStart: (sc && sc.midtermStart) || EV.midtermStart || 12,
-      cycle: (sc && sc.electionCycle) || EV.electionCycle || 16
-    };
-  }
-  function isPresElectionT(st, t) { var c = electConsts(st); return t >= c.start && (t - c.start) % c.cycle === 0; }
-  function isMidtermT(st, t) { var c = electConsts(st); return t >= c.midStart && (t - c.midStart) % c.cycle === 0; }
-  function nextPresElectionT(st, t) { var c = electConsts(st); var e = c.start; while (e <= t) e += c.cycle; return e; }
-  function campaignOpenT(st, t) { return t >= nextPresElectionT(st, t) - 3; } // window: (e−3)..e
-  /* public wrappers keep the old (t)-only signatures working for the GFC default */
-  function isPresElection(t) { return isPresElectionT(null, t); }
-  function isMidterm(t) { return isMidtermT(null, t); }
-  function nextPresElection(t) { return nextPresElectionT(null, t); }
-  function campaignOpen(st) { return campaignOpenT(st, st.turn); }
-
-  /* ---- political capital: scaled by party strength (or shadow mandate) ---- */
-  function pcStats(st) {
-    var p = (st.dualTrack && st.shadowParty) ? st.shadowParty : st.party;
-    var regen = 4 + 4 * p.house / 435 + 3 * p.senate / 100 + 2 * p.governors / 50 + (p.president ? 2 : 0);
-    var cap = 60 + 0.4 * (p.house + p.senate);
-    return { regen: regen, cap: cap };
-  }
-
-  /* ---- initial game state ----
-     createGame()            → classic GFC scenario (backwards compatible)
-     createGame('gfc2008')   → same
-     createGame('realign2016') → The Realignment dual-track scenario          */
+  /* ---- initial state ----
+     v0.4: createGame(scenarioId?) — 'gfc2008' (default, original crisis) or
+     'realign2016' (dual-track: SIM counterfactual + scripted ACTUAL history). */
   function createGame(scenarioId) {
     var sc = null;
     if (scenarioId && SCENARIOS && SCENARIOS[scenarioId]) sc = SCENARIOS[scenarioId];
-    var s = scenarioStart(sc);
+    var s = sc ? scenarioStart(sc) : EV.start;
     var pol = {};
-    POLICIES.forEach(function (d) {
-      var defVal = d.kind === 'slider' ? d.def : d.def;
-      pol[d.id] = { value: defVal, from: defVal, ramp: 1, lag: d.lag || 2, upkeepPer: 0, upkeepLeft: 0, stalled: false };
+    POLICIES.forEach(function (p) {
+      pol[p.id] = { value: p.def, from: p.def, ramp: 1, lag: p.lag, upkeepLeft: 0, upkeepPer: 0, stalled: false };
     });
-    var mult = {}, deleted = {}, subs = {}, subDeleted = {};
-    BUDGET.forEach(function (c) {
-      mult[c.id] = 1;
-      deleted[c.id] = false;
-      if (c.sub) {
-        subs[c.id] = {};
-        subDeleted[c.id] = {};
-        c.sub.forEach(function (sd) { subDeleted[c.id][sd.id] = false; });
-      }
-    });
+    var mult = {}, subs = {}, subDeleted = {};
+    BUDGET.forEach(function (c) { mult[c.id] = 1; subs[c.id] = {}; subDeleted[c.id] = {}; });
     var st = {
       turn: 0, year: s.year, quarter: s.quarter,
       gdp_level: s.gdp_level, priceIndex: s.priceIndex, gdp_nominal: s.gdp_level * s.priceIndex,
