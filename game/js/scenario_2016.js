@@ -1,129 +1,155 @@
-// PoliSim-DBE v0.4 — The Realignment (2016-2028+): scripted ACTUAL track through 2025, branching SIM from 2026.
-// Loaded before data.js; consumed by SCENARIOS['realignment'].actualScript in data.js.
-(function (root, factory) {
-  var S = factory();
-  if (typeof module === 'object' && module.exports) module.exports = S;
-  root.SCENARIO_REALIGNMENT_2016 = S;
-}(typeof self !== 'undefined' ? self : this, function () {
-  return {
-  "id": "realignment",
+/* ============================================================================
+   PoliSim-DBE v0.4 — The Realignment (2016): scripted ACTUAL track.
+   GENERATED FILE — produced by tools/build_scenario_2016.py from
+   research_2016_pack.json + data/history.json. Do not hand-edit;
+   re-run the builder. Consumed by engine.js advanceTurnActual().
+   ========================================================================== */
+window.SCENARIO_2016 = {
+  meta: {
   "title": "The Realignment \u2014 scripted ACTUAL track (Trump \u2192 Biden \u2192 Trump, then a Project-2025-flavored horizon)",
-  "startYear": 2016,
-  "yearsActual": 10,
-  "acts": [
-    {
-      "id": "tcja",
-      "year": 2017,
-      "title": "Tax Cuts and Jobs Act",
-      "summary": "Corporate rate 35%\u219221%, individual cuts, SALT cap; ~$1.9tn added to the 10-yr deficit (CBO).",
-      "effects": { "gdpGrowth": 0.45, "unemployment": -0.25, "inflation": 0.25, "debtDelta": 190, "corpTaxRate": -14, "incomeTaxRate": -1.5 }
-    },
-    {
-      "id": "dereg1",
-      "year": 2017,
-      "title": "Deregulation wave (CRA rollbacks, energy/finance rules)",
-      "summary": "14 Obama-era rules repealed via the Congressional Review Act; compliance costs fall, environmental and consumer protections thin.",
-      "effects": { "gdpGrowth": 0.15, "inflation": -0.05, "regulation": -6, "envQuality": -2.5 }
-    },
-    {
-      "id": "trade1",
-      "year": 2018,
-      "title": "Section 232/301 tariffs (steel, aluminum, China)",
-      "summary": "Tariffs on $380bn of imports; Fed paper estimates net employment drag, consumers bear most of the cost.",
-      "effects": { "gdpGrowth": -0.2, "inflation": 0.35, "unemployment": 0.1, "tradeOpenness": -6, "manufJobs": 0.15 }
-    },
-    {
-      "id": "usmca",
-      "year": 2020,
-      "title": "USMCA (NAFTA replacement)",
-      "summary": "NAFTA successor enters force; USITC estimates +$68bn GDP by year 6 \u2014 a reshuffle, not a reset.",
-      "effects": { "gdpGrowth": 0.12, "tradeOpenness": 1.5, "manufJobs": 0.25 }
-    },
-    {
-      "id": "cares",
-      "year": 2020,
-      "title": "CARES Act (COVID relief)",
-      "summary": "$2.2tn: $1,200 checks, $600/wk unemployment top-up, PPP loans, airline/hospital bailouts.",
-      "effects": { "gdpGrowth": 1.8, "unemployment": -2.2, "debtDelta": 2100, "inflation": 0.3, "poverty": -1.4 }
-    },
-    {
-      "id": "covid_shock",
-      "year": 2020,
-      "title": "COVID-19 shock (exogenous)",
-      "summary": "Lockdowns crater Q2 GDP by a record 9% (annualized 31%); unemployment peaks at 14.7%.",
-      "effects": { "gdpGrowth": -3.4, "unemployment": 4.4, "inflation": -0.9, "debtDelta": 900, "healthOutcomes": -3 }
-    },
-    {
-      "id": "arp",
-      "year": 2021,
-      "title": "American Rescue Plan",
-      "summary": "$1.9tn: $1,400 checks, child tax credit expansion, state/local aid; critics link it to 2021-22 inflation.",
-      "effects": { "gdpGrowth": 1.1, "unemployment": -0.9, "debtDelta": 1850, "inflation": 1.1, "poverty": -1.2 }
-    },
-    {
-      "id": "iija",
-      "year": 2021,
-      "title": "Infrastructure Investment and Jobs Act",
-      "summary": "$1.2tn ($550bn new) for roads, bridges, broadband, water, grid \u2014 bipartisan.",
-      "effects": { "gdpGrowth": 0.35, "unemployment": -0.3, "debtDelta": 256, "infrastructure": 4, "manufJobs": 0.4 }
-    },
-    {
-      "id": "chips",
-      "year": 2022,
-      "title": "CHIPS and Science Act",
-      "summary": "$52.7bn semiconductor subsidies + R&D; fab construction boom in AZ/OH/NY.",
-      "effects": { "gdpGrowth": 0.2, "debtDelta": 79, "manufJobs": 0.8, "techLevel": 1.5 }
-    },
-    {
-      "id": "ira",
-      "year": 2022,
-      "title": "Inflation Reduction Act",
-      "summary": "Clean-energy credits, Medicare drug pricing, IRS funding; scored \u2212$238bn to the 10-yr deficit (later eroded).",
-      "effects": { "gdpGrowth": 0.15, "debtDelta": -238, "greenEnergy": 4, "healthCosts": -0.8 }
-    },
-    {
-      "id": "fra",
-      "year": 2023,
-      "title": "Fiscal Responsibility Act (debt-ceiling deal)",
-      "summary": "Suspends debt ceiling to Jan 2025; caps discretionary spending ~flat for two years.",
-      "effects": { "debtDelta": -150, "govSpendingGrowth": -0.6 }
-    },
-    {
-      "id": "tariffs2",
-      "year": 2025,
-      "title": "Universal + reciprocal tariff regime",
-      "summary": "\u201cLiberation Day\u201d tariffs: effective rate 2.4%\u2192~17-18% peak; modeled drag on growth and trade, \u2212$2.8tn/10yr (CBO/Yale).",
-      "effects": { "gdpGrowth": -0.55, "inflation": 0.9, "tradeOpenness": -12, "debtDelta": -280, "manufJobs": 0.3 }
-    },
-    {
-      "id": "obba",
-      "year": 2025,
-      "title": "One Big Beautiful Bill Act",
-      "summary": "Extends TCJA, adds tips/overtime deductions, Medicaid work requirements; CBO: +$3.4tn debt over 10 years.",
-      "effects": { "gdpGrowth": 0.3, "debtDelta": 340, "incomeTaxRate": -1, "healthCoverage": -1.5, "poverty": 0.6 }
-    },
-    {
-      "id": "doge",
-      "year": 2025,
-      "title": "DOGE federal workforce cuts",
-      "summary": "Cost-cutting drive claims $190-215bn savings; GAO finds 96% unverifiable \u2014 modeled as small and noisy.",
-      "effects": { "debtDelta": -60, "govSpendingGrowth": -1.2, "govServices": -2, "unemployment": 0.15 }
-    }
-  ],
-  "turnEvents": [
-    { "year": 2017, "text": "Trump takes office; unified GOP government passes TCJA on party lines.", "effects": { "party": { "presidentParty": 'r', "house": 241, "senate": 52 } } },
-    { "year": 2018, "text": "Blue wave: Democrats flip the House (+41 seats) on health care and tariffs.", "effects": { "party": { "house": 235 } } },
-    { "year": 2019, "text": "First Trump impeachment (Ukraine); economy steady at ~2.3% growth, 3.6% unemployment.", "effects": {} },
-    { "year": 2020, "text": "COVID-19: 22m jobs lost in two months; CARES passes 96-0. George Floyd protests; record turnout election.", "effects": { "unemployment": 4.4, "gdpGrowth": -3.4, "party": { "presidentParty": 'd', "house": 222, "senate": 50 } } },
-    { "year": 2021, "text": "Jan 6 Capitol attack; Biden inaugurated. Vaccine rollout; ARP passes without GOP votes; inflation begins climbing.", "effects": {} },
-    { "year": 2022, "text": "Inflation peaks at 9.1% (June); Fed hikes 425bp in a year; Dobbs overturns Roe; Ukraine war shocks energy.", "effects": { "inflation": 3.2 } } ,
-    { "year": 2023, "text": "Debt-ceiling standoff resolved by the Fiscal Responsibility Act; soft-landing hopes rise as inflation cools.", "effects": { "inflation": -1.4, "party": { "house": 221, "presidentParty": 'd' } } },
-    { "year": 2024, "text": "Trump wins a second non-consecutive term (312 EV); GOP trifecta; immigration and prices dominate.", "effects": { "party": { "presidentParty": 'r', "house": 220, "senate": 53 } } },
-    { "year": 2025, "text": "Tariff regime + OBBBA + DOGE: growth slows to ~1.8%, inflation re-accelerates toward 3%, term premium rises.", "effects": { "gdpGrowth": -0.4, "inflation": 0.6 } }
-  ],
-  "horizon": {
-    "note": "From 2026 the SIM track takes over. The horizon below is a flavor baseline the engine blends with your policies \u2014 it is not a forecast.",
-    "baseline": { "gdpGrowth": 1.8, "unemployment": 4.2, "inflation": 2.7, "debtGdpPath": [99, 101, 103, 105, 107] }
+  "built": "generated by build_scenario_2016.py from research_2016_pack.json + data/history.json",
+  "conventions": [
+    "Turn 1 = Q1 2017; actual rows through turn 36 (Q4 2025); turns 37-56 are projection (2026-2030).",
+    "gdp_level/gdp_nominal: linear interpolation between annual Q4 anchors (FRED GDPC1/GDP).",
+    "unemployment: BLS quarterly averages (approx; 2025 Q4 partial, Oct imputed).",
+    "debt_gdp: FRED GFDEGDQ188S annual (gross). Annual series held flat across quarters.",
+    "Projection anchors: CBO Feb-2026 extended baseline via CRFB, Tax Foundation, Yale Budget Lab (see pack).",
+    "Polling: Gallup quarterly approval approximations; generic ballot House popular vote in election years."
+  ]
+},
+  acts: {
+  "tcja": {
+    "name": "Tax Cuts and Jobs Act",
+    "quarter": "2017 Q4",
+    "summary": "Corporate rate 35%\u219221%, individual cuts, SALT cap; ~$1.9tn added to the 10-yr deficit (CBO)."
+  },
+  "firststep": {
+    "name": "First Step Act",
+    "quarter": "2018 Q4",
+    "summary": "Criminal-justice reform: retroactive sentencing relief, good-time expansion; tiny fiscal cost (~$0.3bn/5yr)."
+  },
+  "cares": {
+    "name": "CARES Act",
+    "quarter": "2020 Q1",
+    "summary": "$1.76tn pandemic response: direct payments, expanded UI (+$600/wk), PPP loans, state & local aid."
+  },
+  "usmca": {
+    "name": "USMCA",
+    "quarter": "2020 Q3",
+    "summary": "NAFTA successor enters force; USITC estimates +$68bn GDP by year 6 \u2014 a reshuffle, not a reset."
+  },
+  "caa2021": {
+    "name": "Consolidated Appropriations Act, 2021",
+    "quarter": "2020 Q4",
+    "summary": "December 2020 omnibus: $983bn COVID relief title plus FY21 appropriations."
+  },
+  "arp": {
+    "name": "American Rescue Plan",
+    "quarter": "2021 Q1",
+    "summary": "$1.8tn stimulus: $1,400 checks, child tax credit expansion, state & local aid; big 2021 demand boost."
+  },
+  "iija": {
+    "name": "Infrastructure Investment & Jobs Act",
+    "quarter": "2021 Q4",
+    "summary": "$256bn in new money over baseline for roads, bridges, broadband and the grid, spent over a decade."
+  },
+  "chips": {
+    "name": "CHIPS and Science Act",
+    "quarter": "2022 Q3",
+    "summary": "$79bn of semiconductor incentives and science authorizations."
+  },
+  "ira": {
+    "name": "Inflation Reduction Act",
+    "quarter": "2022 Q3",
+    "summary": "Clean-energy credits, Medicare drug pricing, IRS funding; scored \u2212$238bn to the 10-yr deficit (later eroded)."
+  },
+  "caa2023": {
+    "name": "Consolidated Appropriations Act, 2023",
+    "quarter": "2022 Q4",
+    "summary": "$1.7tn FY23 omnibus; roughly $0.2tn above the baseline spending path."
+  },
+  "fra": {
+    "name": "Fiscal Responsibility Act",
+    "quarter": "2023 Q2",
+    "summary": "Debt-ceiling deal: discretionary caps and ~$1.5tn of 10-yr deficit reduction."
+  },
+  "tariffs2025": {
+    "name": "2025 Tariff Waves",
+    "quarter": "2025 Q1",
+    "summary": "\u201cLiberation Day\u201d tariffs: effective rate 2.4%\u2192~17-18% peak; modeled drag on growth and trade, \u2212$2.8tn/10yr (CBO/Yale)."
+  },
+  "doge": {
+    "name": "DOGE Executive Cuts",
+    "quarter": "2025 Q1",
+    "summary": "Cost-cutting drive claims $190-215bn savings; GAO finds 96% unverifiable \u2014 modeled as small and noisy."
+  },
+  "obbba": {
+    "name": "One Big Beautiful Bill Act",
+    "quarter": "2025 Q3",
+    "summary": "$3.4tn tax-cut and spending package (CBO): extends TCJA, adds defense and immigration enforcement funding."
+  }
+},
+  byTurn: {
+    "1": {"gdp_level": 19448.9, "gdp_nominal": 19326.3, "unemployment": 4.7, "debt_gdp": 102.27, "med_income": 78600.0, "homelessness": 554, "overdoses": 70237, "incarcerated": 2.15, "inflation": 2.13, "det": {"education": 62, "innovation": 79, "competitiveness": 79, "military": 89, "trade": 71, "output": 72, "fincenter": 89, "reserve_fx": 77}, "acts": []},
+    "2": {"gdp_level": 19593.4, "gdp_nominal": 19563.2, "unemployment": 4.4, "debt_gdp": 102.27, "med_income": 78600.0, "homelessness": 554, "overdoses": 70237, "incarcerated": 2.15, "inflation": 2.13, "det": {"education": 62, "innovation": 79, "competitiveness": 79, "military": 89, "trade": 71, "output": 72, "fincenter": 89, "reserve_fx": 77}, "acts": []},
+    "3": {"gdp_level": 19737.9, "gdp_nominal": 19800.2, "unemployment": 4.3, "debt_gdp": 102.27, "med_income": 78600.0, "homelessness": 554, "overdoses": 70237, "incarcerated": 2.15, "inflation": 2.13, "det": {"education": 62, "innovation": 79, "competitiveness": 79, "military": 89, "trade": 71, "output": 72, "fincenter": 89, "reserve_fx": 77}, "acts": []},
+    "4": {"gdp_level": 19882.4, "gdp_nominal": 20037.1, "unemployment": 4.1, "debt_gdp": 102.27, "med_income": 78600.0, "homelessness": 554, "overdoses": 70237, "incarcerated": 2.15, "inflation": 2.13, "det": {"education": 62, "innovation": 79, "competitiveness": 79, "military": 89, "trade": 71, "output": 72, "fincenter": 89, "reserve_fx": 77}, "acts": ["tcja"]},
+    "5": {"gdp_level": 19988.0, "gdp_nominal": 20257.3, "unemployment": 4.1, "debt_gdp": 105.05, "med_income": 79620.0, "homelessness": 553, "overdoses": 67367, "incarcerated": 2.1, "inflation": 2.0, "det": {"education": 62, "innovation": 80, "competitiveness": 78, "military": 90, "trade": 68, "output": 74, "fincenter": 90, "reserve_fx": 76}, "acts": []},
+    "6": {"gdp_level": 20093.6, "gdp_nominal": 20477.5, "unemployment": 4.0, "debt_gdp": 105.05, "med_income": 79620.0, "homelessness": 553, "overdoses": 67367, "incarcerated": 2.1, "inflation": 2.0, "det": {"education": 62, "innovation": 80, "competitiveness": 78, "military": 90, "trade": 68, "output": 74, "fincenter": 90, "reserve_fx": 76}, "acts": []},
+    "7": {"gdp_level": 20199.2, "gdp_nominal": 20697.7, "unemployment": 3.8, "debt_gdp": 105.05, "med_income": 79620.0, "homelessness": 553, "overdoses": 67367, "incarcerated": 2.1, "inflation": 2.0, "det": {"education": 62, "innovation": 80, "competitiveness": 78, "military": 90, "trade": 68, "output": 74, "fincenter": 90, "reserve_fx": 76}, "acts": []},
+    "8": {"gdp_level": 20304.9, "gdp_nominal": 20917.9, "unemployment": 3.8, "debt_gdp": 105.05, "med_income": 79620.0, "homelessness": 553, "overdoses": 67367, "incarcerated": 2.1, "inflation": 2.0, "det": {"education": 62, "innovation": 80, "competitiveness": 78, "military": 90, "trade": 68, "output": 74, "fincenter": 90, "reserve_fx": 76}, "acts": ["firststep"]},
+    "9": {"gdp_level": 20475.0, "gdp_nominal": 21171.7, "unemployment": 3.9, "debt_gdp": 105.78, "med_income": 85320.0, "homelessness": 568, "overdoses": 70630, "incarcerated": 2.09, "inflation": 2.32, "det": {"education": 62, "innovation": 81, "competitiveness": 77, "military": 90, "trade": 67, "output": 76, "fincenter": 90, "reserve_fx": 75}, "acts": []},
+    "10": {"gdp_level": 20645.2, "gdp_nominal": 21425.5, "unemployment": 3.7, "debt_gdp": 105.78, "med_income": 85320.0, "homelessness": 568, "overdoses": 70630, "incarcerated": 2.09, "inflation": 2.32, "det": {"education": 62, "innovation": 81, "competitiveness": 77, "military": 90, "trade": 67, "output": 76, "fincenter": 90, "reserve_fx": 75}, "acts": []},
+    "11": {"gdp_level": 20815.3, "gdp_nominal": 21679.4, "unemployment": 3.6, "debt_gdp": 105.78, "med_income": 85320.0, "homelessness": 568, "overdoses": 70630, "incarcerated": 2.09, "inflation": 2.32, "det": {"education": 62, "innovation": 81, "competitiveness": 77, "military": 90, "trade": 67, "output": 76, "fincenter": 90, "reserve_fx": 75}, "acts": []},
+    "12": {"gdp_level": 20985.4, "gdp_nominal": 21933.2, "unemployment": 3.6, "debt_gdp": 105.78, "med_income": 85320.0, "homelessness": 568, "overdoses": 70630, "incarcerated": 2.09, "inflation": 2.32, "det": {"education": 62, "innovation": 81, "competitiveness": 77, "military": 90, "trade": 67, "output": 76, "fincenter": 90, "reserve_fx": 75}, "acts": []},
+    "13": {"gdp_level": 20937.1, "gdp_nominal": 21971.7, "unemployment": 4.4, "debt_gdp": 125.63, "med_income": 83590.0, "homelessness": 580, "overdoses": 91799, "incarcerated": 1.79, "inflation": 1.32, "det": {"education": 61, "innovation": 80, "competitiveness": 74, "military": 89, "trade": 64, "output": 68, "fincenter": 89, "reserve_fx": 74}, "acts": ["cares"]},
+    "14": {"gdp_level": 20888.7, "gdp_nominal": 22010.2, "unemployment": 11.1, "debt_gdp": 125.63, "med_income": 83590.0, "homelessness": 580, "overdoses": 91799, "incarcerated": 1.79, "inflation": 1.32, "det": {"education": 61, "innovation": 80, "competitiveness": 74, "military": 89, "trade": 64, "output": 68, "fincenter": 89, "reserve_fx": 74}, "acts": []},
+    "15": {"gdp_level": 20840.3, "gdp_nominal": 22048.7, "unemployment": 8.8, "debt_gdp": 125.63, "med_income": 83590.0, "homelessness": 580, "overdoses": 91799, "incarcerated": 1.79, "inflation": 1.32, "det": {"education": 61, "innovation": 80, "competitiveness": 74, "military": 89, "trade": 64, "output": 68, "fincenter": 89, "reserve_fx": 74}, "acts": ["usmca"]},
+    "16": {"gdp_level": 20791.9, "gdp_nominal": 22087.2, "unemployment": 6.7, "debt_gdp": 125.63, "med_income": 83590.0, "homelessness": 580, "overdoses": 91799, "incarcerated": 1.79, "inflation": 1.32, "det": {"education": 61, "innovation": 80, "competitiveness": 74, "military": 89, "trade": 64, "output": 68, "fincenter": 89, "reserve_fx": 74}, "acts": ["caa2021"]},
+    "17": {"gdp_level": 21091.1, "gdp_nominal": 22768.8, "unemployment": 6.2, "debt_gdp": 119.36, "med_income": 83270.0, "homelessness": 583, "overdoses": 106699, "incarcerated": 1.84, "inflation": 7.17, "det": {"education": 58, "innovation": 81, "competitiveness": 76, "military": 88, "trade": 66, "output": 74, "fincenter": 88, "reserve_fx": 73}, "acts": ["arp"]},
+    "18": {"gdp_level": 21390.3, "gdp_nominal": 23450.4, "unemployment": 5.9, "debt_gdp": 119.36, "med_income": 83270.0, "homelessness": 583, "overdoses": 106699, "incarcerated": 1.84, "inflation": 7.17, "det": {"education": 58, "innovation": 81, "competitiveness": 76, "military": 88, "trade": 66, "output": 74, "fincenter": 88, "reserve_fx": 73}, "acts": []},
+    "19": {"gdp_level": 21689.5, "gdp_nominal": 24132.0, "unemployment": 5.2, "debt_gdp": 119.36, "med_income": 83270.0, "homelessness": 583, "overdoses": 106699, "incarcerated": 1.84, "inflation": 7.17, "det": {"education": 58, "innovation": 81, "competitiveness": 76, "military": 88, "trade": 66, "output": 74, "fincenter": 88, "reserve_fx": 73}, "acts": []},
+    "20": {"gdp_level": 21988.7, "gdp_nominal": 24813.6, "unemployment": 4.2, "debt_gdp": 119.36, "med_income": 83270.0, "homelessness": 583, "overdoses": 106699, "incarcerated": 1.84, "inflation": 7.17, "det": {"education": 58, "innovation": 81, "competitiveness": 76, "military": 88, "trade": 66, "output": 74, "fincenter": 88, "reserve_fx": 73}, "acts": ["iija"]},
+    "21": {"gdp_level": 22061.1, "gdp_nominal": 25302.8, "unemployment": 4.0, "debt_gdp": 117.37, "med_income": 81460.0, "homelessness": 582, "overdoses": 107941, "incarcerated": 1.9, "inflation": 6.4, "det": {"education": 56, "innovation": 82, "competitiveness": 78, "military": 88, "trade": 68, "output": 76, "fincenter": 88, "reserve_fx": 72}, "acts": []},
+    "22": {"gdp_level": 22133.5, "gdp_nominal": 25792.1, "unemployment": 3.6, "debt_gdp": 117.37, "med_income": 81460.0, "homelessness": 582, "overdoses": 107941, "incarcerated": 1.9, "inflation": 6.4, "det": {"education": 56, "innovation": 82, "competitiveness": 78, "military": 88, "trade": 68, "output": 76, "fincenter": 88, "reserve_fx": 72}, "acts": []},
+    "23": {"gdp_level": 22205.9, "gdp_nominal": 26281.3, "unemployment": 3.6, "debt_gdp": 117.37, "med_income": 81460.0, "homelessness": 582, "overdoses": 107941, "incarcerated": 1.9, "inflation": 6.4, "det": {"education": 56, "innovation": 82, "competitiveness": 78, "military": 88, "trade": 68, "output": 76, "fincenter": 88, "reserve_fx": 72}, "acts": ["chips", "ira"]},
+    "24": {"gdp_level": 22278.3, "gdp_nominal": 26770.5, "unemployment": 3.6, "debt_gdp": 117.37, "med_income": 81460.0, "homelessness": 582, "overdoses": 107941, "incarcerated": 1.9, "inflation": 6.4, "det": {"education": 56, "innovation": 82, "competitiveness": 78, "military": 88, "trade": 68, "output": 76, "fincenter": 88, "reserve_fx": 72}, "acts": ["caa2023"]},
+    "25": {"gdp_level": 22467.2, "gdp_nominal": 27184.1, "unemployment": 3.5, "debt_gdp": 119.62, "med_income": 84730.0, "homelessness": 653, "overdoses": 105007, "incarcerated": 1.95, "inflation": 3.32, "det": {"education": 55, "innovation": 83, "competitiveness": 79, "military": 88, "trade": 68, "output": 78, "fincenter": 89, "reserve_fx": 72}, "acts": []},
+    "26": {"gdp_level": 22656.1, "gdp_nominal": 27597.6, "unemployment": 3.6, "debt_gdp": 119.62, "med_income": 84730.0, "homelessness": 653, "overdoses": 105007, "incarcerated": 1.95, "inflation": 3.32, "det": {"education": 55, "innovation": 83, "competitiveness": 79, "military": 88, "trade": 68, "output": 78, "fincenter": 89, "reserve_fx": 72}, "acts": ["fra"]},
+    "27": {"gdp_level": 22844.9, "gdp_nominal": 28011.2, "unemployment": 3.7, "debt_gdp": 119.62, "med_income": 84730.0, "homelessness": 653, "overdoses": 105007, "incarcerated": 1.95, "inflation": 3.32, "det": {"education": 55, "innovation": 83, "competitiveness": 79, "military": 88, "trade": 68, "output": 78, "fincenter": 89, "reserve_fx": 72}, "acts": []},
+    "28": {"gdp_level": 23033.8, "gdp_nominal": 28424.7, "unemployment": 3.8, "debt_gdp": 119.62, "med_income": 84730.0, "homelessness": 653, "overdoses": 105007, "incarcerated": 1.95, "inflation": 3.32, "det": {"education": 55, "innovation": 83, "competitiveness": 79, "military": 88, "trade": 68, "output": 78, "fincenter": 89, "reserve_fx": 72}, "acts": []},
+    "29": {"gdp_level": 23172.0, "gdp_nominal": 28774.8, "unemployment": 3.9, "debt_gdp": 121.44, "med_income": 85210.0, "homelessness": 771, "overdoses": 79384, "incarcerated": 1.92, "inflation": 2.87, "det": {"education": 55, "innovation": 84, "competitiveness": 78, "military": 89, "trade": 67, "output": 80, "fincenter": 90, "reserve_fx": 71}, "acts": []},
+    "30": {"gdp_level": 23310.2, "gdp_nominal": 29125.0, "unemployment": 4.1, "debt_gdp": 121.44, "med_income": 85210.0, "homelessness": 771, "overdoses": 79384, "incarcerated": 1.92, "inflation": 2.87, "det": {"education": 55, "innovation": 84, "competitiveness": 78, "military": 89, "trade": 67, "output": 80, "fincenter": 90, "reserve_fx": 71}, "acts": []},
+    "31": {"gdp_level": 23448.4, "gdp_nominal": 29475.1, "unemployment": 4.2, "debt_gdp": 121.44, "med_income": 85210.0, "homelessness": 771, "overdoses": 79384, "incarcerated": 1.92, "inflation": 2.87, "det": {"education": 55, "innovation": 84, "competitiveness": 78, "military": 89, "trade": 67, "output": 80, "fincenter": 90, "reserve_fx": 71}, "acts": []},
+    "32": {"gdp_level": 23586.5, "gdp_nominal": 29825.2, "unemployment": 4.1, "debt_gdp": 121.44, "med_income": 85210.0, "homelessness": 771, "overdoses": 79384, "incarcerated": 1.92, "inflation": 2.87, "det": {"education": 55, "innovation": 84, "competitiveness": 78, "military": 89, "trade": 67, "output": 80, "fincenter": 90, "reserve_fx": 71}, "acts": []},
+    "33": {"gdp_level": 23721.3, "gdp_nominal": 30234.5, "unemployment": 4.1, "debt_gdp": 122.57, "med_income": 87460.0, "homelessness": 745.652, "overdoses": 69973, "incarcerated": 1.92, "inflation": 2.65, "det": {"education": 55, "innovation": 85, "competitiveness": 77, "military": 88, "trade": 60, "output": 81, "fincenter": 90, "reserve_fx": 69}, "acts": ["tariffs2025", "doge"]},
+    "34": {"gdp_level": 23856.0, "gdp_nominal": 30643.9, "unemployment": 4.2, "debt_gdp": 122.57, "med_income": 87460.0, "homelessness": 745.652, "overdoses": 69973, "incarcerated": 1.92, "inflation": 2.65, "det": {"education": 55, "innovation": 85, "competitiveness": 77, "military": 88, "trade": 60, "output": 81, "fincenter": 90, "reserve_fx": 69}, "acts": []},
+    "35": {"gdp_level": 23990.7, "gdp_nominal": 31053.2, "unemployment": 4.3, "debt_gdp": 122.57, "med_income": 87460.0, "homelessness": 745.652, "overdoses": 69973, "incarcerated": 1.92, "inflation": 2.65, "det": {"education": 55, "innovation": 85, "competitiveness": 77, "military": 88, "trade": 60, "output": 81, "fincenter": 90, "reserve_fx": 69}, "acts": ["obbba"]},
+    "36": {"gdp_level": 24125.5, "gdp_nominal": 31462.5, "unemployment": 4.4, "debt_gdp": 122.57, "med_income": 87460.0, "homelessness": 745.652, "overdoses": 69973, "incarcerated": 1.92, "inflation": 2.65, "det": {"education": 55, "innovation": 85, "competitiveness": 77, "military": 88, "trade": 60, "output": 81, "fincenter": 90, "reserve_fx": 69}, "acts": []},
+    "37": {"gdp_level": 24221.4, "gdp_nominal": 31798.7, "unemployment": 4.6, "debt_gdp": 123.87, "med_income": 87634.0, "homelessness": 749.4, "overdoses": 69442.0, "incarcerated": 1.918, "inflation": 2.7, "det": {"education": 54.9, "innovation": 85.1, "competitiveness": 76.9, "military": 88.1, "trade": 59.8, "output": 81.0, "fincenter": 90.0, "reserve_fx": 68.8}, "acts": []},
+    "38": {"gdp_level": 24317.7, "gdp_nominal": 32138.5, "unemployment": 4.6, "debt_gdp": 123.87, "med_income": 87809.0, "homelessness": 753.1, "overdoses": 68915.0, "incarcerated": 1.915, "inflation": 2.7, "det": {"education": 54.9, "innovation": 85.1, "competitiveness": 76.9, "military": 88.1, "trade": 59.8, "output": 81.0, "fincenter": 90.0, "reserve_fx": 68.8}, "acts": []},
+    "39": {"gdp_level": 24414.4, "gdp_nominal": 32481.9, "unemployment": 4.6, "debt_gdp": 123.87, "med_income": 87984.0, "homelessness": 756.8, "overdoses": 68393.0, "incarcerated": 1.913, "inflation": 2.7, "det": {"education": 54.9, "innovation": 85.1, "competitiveness": 76.9, "military": 88.1, "trade": 59.8, "output": 81.0, "fincenter": 90.0, "reserve_fx": 68.8}, "acts": []},
+    "40": {"gdp_level": 24511.5, "gdp_nominal": 32829.0, "unemployment": 4.6, "debt_gdp": 123.87, "med_income": 88160.0, "homelessness": 760.6, "overdoses": 67874.0, "incarcerated": 1.91, "inflation": 2.7, "det": {"education": 54.9, "innovation": 85.1, "competitiveness": 76.9, "military": 88.1, "trade": 59.8, "output": 81.0, "fincenter": 90.0, "reserve_fx": 68.8}, "acts": []},
+    "41": {"gdp_level": 24621.1, "gdp_nominal": 33179.9, "unemployment": 4.5, "debt_gdp": 125.17, "med_income": 88335.0, "homelessness": 764.3, "overdoses": 67359.0, "incarcerated": 1.908, "inflation": 2.5, "det": {"education": 54.8, "innovation": 85.2, "competitiveness": 76.8, "military": 88.2, "trade": 59.5, "output": 81.1, "fincenter": 90.0, "reserve_fx": 68.6}, "acts": []},
+    "42": {"gdp_level": 24731.1, "gdp_nominal": 33534.6, "unemployment": 4.5, "debt_gdp": 125.17, "med_income": 88512.0, "homelessness": 768.1, "overdoses": 66848.0, "incarcerated": 1.906, "inflation": 2.5, "det": {"education": 54.8, "innovation": 85.2, "competitiveness": 76.8, "military": 88.2, "trade": 59.5, "output": 81.1, "fincenter": 90.0, "reserve_fx": 68.6}, "acts": []},
+    "43": {"gdp_level": 24841.7, "gdp_nominal": 33893.1, "unemployment": 4.5, "debt_gdp": 125.17, "med_income": 88688.0, "homelessness": 771.9, "overdoses": 66341.0, "incarcerated": 1.903, "inflation": 2.5, "det": {"education": 54.8, "innovation": 85.2, "competitiveness": 76.8, "military": 88.2, "trade": 59.5, "output": 81.1, "fincenter": 90.0, "reserve_fx": 68.6}, "acts": []},
+    "44": {"gdp_level": 24952.7, "gdp_nominal": 34255.4, "unemployment": 4.5, "debt_gdp": 125.17, "med_income": 88865.0, "homelessness": 775.8, "overdoses": 65838.0, "incarcerated": 1.901, "inflation": 2.5, "det": {"education": 54.8, "innovation": 85.2, "competitiveness": 76.8, "military": 88.2, "trade": 59.5, "output": 81.1, "fincenter": 90.0, "reserve_fx": 68.6}, "acts": []},
+    "45": {"gdp_level": 25064.2, "gdp_nominal": 34604.7, "unemployment": 4.4, "debt_gdp": 126.47, "med_income": 89042.0, "homelessness": 779.6, "overdoses": 65338.0, "incarcerated": 1.898, "inflation": 2.3, "det": {"education": 54.8, "innovation": 85.2, "competitiveness": 76.7, "military": 88.3, "trade": 59.2, "output": 81.1, "fincenter": 90.0, "reserve_fx": 68.4}, "acts": []},
+    "46": {"gdp_level": 25176.3, "gdp_nominal": 34957.6, "unemployment": 4.4, "debt_gdp": 126.47, "med_income": 89220.0, "homelessness": 783.5, "overdoses": 64843.0, "incarcerated": 1.896, "inflation": 2.3, "det": {"education": 54.8, "innovation": 85.2, "competitiveness": 76.7, "military": 88.3, "trade": 59.2, "output": 81.1, "fincenter": 90.0, "reserve_fx": 68.4}, "acts": []},
+    "47": {"gdp_level": 25288.8, "gdp_nominal": 35314.0, "unemployment": 4.4, "debt_gdp": 126.47, "med_income": 89398.0, "homelessness": 787.4, "overdoses": 64351.0, "incarcerated": 1.894, "inflation": 2.3, "det": {"education": 54.8, "innovation": 85.2, "competitiveness": 76.7, "military": 88.3, "trade": 59.2, "output": 81.1, "fincenter": 90.0, "reserve_fx": 68.4}, "acts": []},
+    "48": {"gdp_level": 25401.8, "gdp_nominal": 35674.1, "unemployment": 4.4, "debt_gdp": 126.47, "med_income": 89576.0, "homelessness": 791.3, "overdoses": 63862.0, "incarcerated": 1.891, "inflation": 2.3, "det": {"education": 54.8, "innovation": 85.2, "competitiveness": 76.7, "military": 88.3, "trade": 59.2, "output": 81.1, "fincenter": 90.0, "reserve_fx": 68.4}, "acts": []},
+    "49": {"gdp_level": 25515.4, "gdp_nominal": 36020.2, "unemployment": 4.3, "debt_gdp": 127.77, "med_income": 89754.0, "homelessness": 795.2, "overdoses": 63378.0, "incarcerated": 1.889, "inflation": 2.1, "det": {"education": 54.7, "innovation": 85.3, "competitiveness": 76.6, "military": 88.4, "trade": 59.0, "output": 81.2, "fincenter": 90.0, "reserve_fx": 68.2}, "acts": []},
+    "50": {"gdp_level": 25629.4, "gdp_nominal": 36369.7, "unemployment": 4.3, "debt_gdp": 127.77, "med_income": 89933.0, "homelessness": 799.2, "overdoses": 62897.0, "incarcerated": 1.887, "inflation": 2.1, "det": {"education": 54.7, "innovation": 85.3, "competitiveness": 76.6, "military": 88.4, "trade": 59.0, "output": 81.2, "fincenter": 90.0, "reserve_fx": 68.2}, "acts": []},
+    "51": {"gdp_level": 25744.0, "gdp_nominal": 36722.6, "unemployment": 4.3, "debt_gdp": 127.77, "med_income": 90113.0, "homelessness": 803.1, "overdoses": 62420.0, "incarcerated": 1.884, "inflation": 2.1, "det": {"education": 54.7, "innovation": 85.3, "competitiveness": 76.6, "military": 88.4, "trade": 59.0, "output": 81.2, "fincenter": 90.0, "reserve_fx": 68.2}, "acts": []},
+    "52": {"gdp_level": 25859.1, "gdp_nominal": 37078.9, "unemployment": 4.3, "debt_gdp": 127.77, "med_income": 90292.0, "homelessness": 807.1, "overdoses": 61947.0, "incarcerated": 1.882, "inflation": 2.1, "det": {"education": 54.7, "innovation": 85.3, "competitiveness": 76.6, "military": 88.4, "trade": 59.0, "output": 81.2, "fincenter": 90.0, "reserve_fx": 68.2}, "acts": []},
+    "53": {"gdp_level": 25974.7, "gdp_nominal": 37429.4, "unemployment": 4.3, "debt_gdp": 129.07, "med_income": 90473.0, "homelessness": 811.1, "overdoses": 61477.0, "incarcerated": 1.88, "inflation": 2.0, "det": {"education": 54.6, "innovation": 85.4, "competitiveness": 76.5, "military": 88.5, "trade": 58.8, "output": 81.2, "fincenter": 90.0, "reserve_fx": 68.0}, "acts": []},
+    "54": {"gdp_level": 26090.8, "gdp_nominal": 37783.3, "unemployment": 4.3, "debt_gdp": 129.07, "med_income": 90653.0, "homelessness": 815.1, "overdoses": 61010.0, "incarcerated": 1.877, "inflation": 2.0, "det": {"education": 54.6, "innovation": 85.4, "competitiveness": 76.5, "military": 88.5, "trade": 58.8, "output": 81.2, "fincenter": 90.0, "reserve_fx": 68.0}, "acts": []},
+    "55": {"gdp_level": 26207.4, "gdp_nominal": 38140.6, "unemployment": 4.3, "debt_gdp": 129.07, "med_income": 90834.0, "homelessness": 819.2, "overdoses": 60548.0, "incarcerated": 1.875, "inflation": 2.0, "det": {"education": 54.6, "innovation": 85.4, "competitiveness": 76.5, "military": 88.5, "trade": 58.8, "output": 81.2, "fincenter": 90.0, "reserve_fx": 68.0}, "acts": []},
+    "56": {"gdp_level": 26324.5, "gdp_nominal": 38501.2, "unemployment": 4.3, "debt_gdp": 129.07, "med_income": 91015.0, "homelessness": 823.3, "overdoses": 60088.0, "incarcerated": 1.872, "inflation": 2.0, "det": {"education": 54.6, "innovation": 85.4, "competitiveness": 76.5, "military": 88.5, "trade": 58.8, "output": 81.2, "fincenter": 90.0, "reserve_fx": 68.0}, "acts": []},
+  },
+  polling: {
+    republican: [null, 41, 39, 38, 38, 39, 42, 40, 41, 41, 41, 42, 43, 44, 42, 41, 39, 49.0, 49.0, 49.0, 49.0, 51.4, 51.4, 51.4, 51.4, 50.5, 50.5, 50.5, 50.5, 51.4, 51.4, 51.4, 51.4, 45, 42, 40, 38, 40.0, 40.0, 40.0, 40.0, 42.0, 42.0, 42.0, 42.0, 44.0, 44.0, 44.0, 44.0, 46.0, 46.0, 46.0, 46.0, 48.0, 48.0, 48.0, 48.0],
+    democrat: [null, 54.5, 54.5, 54.5, 54.5, 54.2, 54.2, 54.2, 54.2, 53.5, 53.5, 53.5, 53.5, 51.5, 51.5, 51.5, 51.5, 56, 53, 49, 43, 41, 41, 42, 42, 41, 41, 40, 39, 39, 38, 39, 39, 52.2, 52.2, 52.2, 52.2, 51.6, 51.6, 51.6, 51.6, 50.9, 50.9, 50.9, 50.9, 50.3, 50.3, 50.3, 50.3, 49.6, 49.6, 49.6, 49.6, 49.0, 49.0, 49.0, 49.0],
+    notes: "Gallup ended regular approval polling mid-2025; quarterly figures are Gallup averages (approx for historical quarters). Generic ballot uses actual House popular vote in election years."
   }
 };
-}));
