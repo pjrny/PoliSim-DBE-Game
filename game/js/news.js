@@ -1,6 +1,8 @@
-/* PoliSim-DBE v0.3 - news.js
+/* PoliSim-DBE v0.4 - news.js
    News ticker + social reaction content. Plain browser global, no modules.
-   Turn N = quarter N starting Q1 2008 (turn1=Q1 2008, turn40=Q4 2017). */
+   Turn N = quarter N starting Q1 2008 (turn1=Q1 2008, turn40=Q4 2017).
+   v0.4: scenario-scoped feed `NEWS.scenarios.realign2016` — The Realignment's
+   scripted actual timeline (turn1=Q1 2017 ... turn36=Q4 2025, then generic). */
 window.NEWS = {
   turns: {
     "1": {
@@ -469,6 +471,400 @@ window.NEWS.generic = {
     "@VetForPeace: Twenty years of war, and the VA waitlist outlived the wars. Fund care, not parades."
   ]
 };
+
+// v0.4 — The Realignment (2016): scripted actual-timeline news, turn 1 = Q1 2017.
+// These headlines describe the REAL track playing out underneath the player's counterfactual.
+(function () {
+  var R = {};
+  R["1"] = {
+    h: [
+      "[WIRE] Trump sworn in; Women's Marches draw millions nationwide the next day",
+      "[WIRE] Travel ban order sparks airport chaos and court battles"
+    ],
+    s: [
+      "@RustBeltDiner: new party on my ballot and a circus in DC. at least it's not boring",
+      "@UnionBoss: Five seats and a dream. This is how every realignment starts — nobody believes it yet."
+    ]
+  };
+  R["2"] = {
+    h: [
+      "[WIRE] Trump fires FBI Director Comey; special counsel Mueller appointed days later",
+      "[DATA] Unemployment dips to 4.3%, a 16-year low"
+    ],
+    s: [
+      "@FedWatcher: Fired the man investigating him. On TV. In May. This is fine.",
+      "@SoccerMomOH: 4.3% unemployment and everyone I know is still paycheck to paycheck."
+    ]
+  };
+  R["3"] = {
+    h: [
+      "[WIRE] Charlottesville rally turns deadly; 'very fine people' remark draws national fire",
+      "[WIRE] DACA rescinded; 800,000 dreamers face limbo"
+    ],
+    s: [
+      "@PastorMike: Torches in an American street in 2017. I don't recognize my country this week.",
+      "@CollegeKid22: my lab partner has been here since she was 4 and now she might get deported. how"
+    ]
+  };
+  R["4"] = {
+    h: [
+      "[WIRE] Republicans pass $1.5T Tax Cuts and Jobs Act with zero Democratic votes",
+      "[WEB] #MeToo goes viral; harassment reckoning topples powerful men"
+    ],
+    s: [
+      "@EconProf: Corporate rate to 21%. CBO says it adds ~$1.9T over a decade. The deficit hawks are quiet.",
+      "@MainStreetCEO: My effective rate just dropped 14 points. I'll take the win and say nothing."
+    ]
+  };
+  R["5"] = {
+    h: [
+      "[WIRE] Brief government shutdown ends; markets convulse in 'Volmageddon' selloff",
+      "[POLITICS] Midterm primaries kick off with record candidate filings"
+    ],
+    s: [
+      "@WallStWhale: Vol ETF blew up in one day. Machines are running this market now.",
+      "@OccupyKid: shutdown theater again. your party with 5 seats would at least need OUR votes"
+    ]
+  };
+  R["6"] = {
+    h: [
+      "[WIRE] Trump-Kim summit in Singapore; joint statement short on details",
+      "[WIRE] Family separation policy at border provokes national outcry"
+    ],
+    s: [
+      "@VetForPeace: Handshake diplomacy with a dictator while kids in cages make the evening news. Surreal week.",
+      "@NursesUnion: Pediatricians begging them to stop separating toddlers from parents. Begging."
+    ]
+  };
+  R["7"] = {
+    h: [
+      "[WIRE] Kavanaugh hearings roil the country; Ford testifies to 20 million viewers",
+      "[DATA] Trade war bites: soybean exports to China collapse"
+    ],
+    s: [
+      "@FarmerIA: My soybean contract just evaporated. The bailout check better not be soybean themed.",
+      "@CollegeKid22: watched the whole hearing in the student union. nobody talked. eerie"
+    ]
+  };
+  R["8"] = {
+    h: [
+      "[POLITICS] Midterms flip the House blue; your five-seat caucus doubles overnight",
+      "[MARKETS] Dow sinks 800 points in a day; GM announces 14,000 layoffs"
+    ],
+    s: [
+      "@EconProf: Suburban revolt, a check on the White House, and a yield curve about to invert. Fun times.",
+      "@RustBeltDiner: GM closed our plant after the tax cut 'saved manufacturing.' ok."
+    ]
+  };
+  R["9"] = {
+    h: [
+      "[WIRE] Longest shutdown in history — 35 days over border wall funding",
+      "[WIRE] Mueller report delivered to DOJ"
+    ],
+    s: [
+      "@MainStreetCEO: Airport security working unpaid, TSA lines out the door. This is governing?",
+      "@SenateDem: 35 days. TSA workers at food banks. Over a wall Congress already refused."
+    ]
+  };
+  R["10"] = {
+    h: [
+      "[WIRE] Mueller report released; finds no conspiracy but catalogs ten obstruction episodes",
+      "[WIRE] House opens investigations on taxes, emoluments, and security clearances"
+    ],
+    s: [
+      "@EconProf: 'Does not exonerate' is doing a lot of work in that sentence.",
+      "@OccupyKid: two years of 'wait for mueller' and the takeaway is... nothing changes. again"
+    ]
+  };
+  R["11"] = {
+    h: [
+      "[WIRE] Impeachment inquiry opens over Ukraine call",
+      "[MARKETS] Fed cuts rates for first time since 2008, cites 'global developments'"
+    ],
+    s: [
+      "@FedWatcher: Mid-cycle adjustment, Powell says. The bond market is pricing something bigger.",
+      "@SoccerMomOH: I read the call summary. It reads like a shakedown with a head of state."
+    ]
+  };
+  R["12"] = {
+    h: [
+      "[WIRE] House impeaches Trump on two articles — a historic first for a first-term president",
+      "[WIRE] US-China announce 'Phase One' trade deal"
+    ],
+    s: [
+      "@SenateGOP: Impeached over a phone call. The Senate will end this in a day.",
+      "@EconProf: Phase One is mostly a soybean purchase agreement. Structural issues untouched."
+    ]
+  };
+  R["13"] = {
+    h: [
+      "[WIRE] WHO declares COVID-19 a pandemic; nation locks down in days",
+      "[WIRE] Congress passes $2.2T CARES Act, largest rescue in history"
+    ],
+    s: [
+      "@NursesUnion: No tests, no masks, no plan. We are going in with trash bags over our scrubs.",
+      "@CollegeKid22: dorms closed at noon, flight home $900. what is happening"
+    ]
+  };
+  R["14"] = {
+    h: [
+      "[DATA] 22 million jobs lost in April; unemployment spikes to 14.7%",
+      "[WIRE] George Floyd killed by police in Minneapolis; protests sweep 2,000 cities"
+    ],
+    s: [
+      "@UnionBoss: 22 million jobs in a month. The Depression took four YEARS to do that.",
+      "@OccupyKid: protests in all fifty states. the whole country watched the same eight minutes"
+    ]
+  };
+  R["15"] = {
+    h: [
+      "[WIRE] West Coast wildfires turn skies orange; millions under smoke advisory",
+      "[POLITICS] Stimulus talks stall as eviction moratorium nears expiry"
+    ],
+    s: [
+      "@SoccerMomOH: 9am and it looks like dusk outside. The kids think it's cool. It terrifies me.",
+      "@MainStreetCEO: PPP saved payroll for two months. Month three is when the layoffs start."
+    ]
+  };
+  R["16"] = {
+    h: [
+      "[POLITICS] Biden defeats Trump 306-232; transition stalls as lawsuits fail",
+      "[WIRE] First COVID vaccines authorized; rollout begins"
+    ],
+    s: [
+      "@EconProf: Election settled, transition frozen, 3,000 dying a day. Worst possible combination.",
+      "@VetForPeace: Vaccine before Christmas. The one piece of actual good news all year."
+    ]
+  };
+  R["17"] = {
+    h: [
+      "[WIRE] Capitol stormed on Jan 6 as Congress certifies results; five dead",
+      "[WIRE] Biden sworn in; $1.9T American Rescue Plan passes with zero GOP votes"
+    ],
+    s: [
+      "@PastorMike: I watched a Confederate flag walk through the Capitol in 2021. Words failed.",
+      "@EconProf: $1.9T into an economy already healing. Watch the inflation prints in 18 months."
+    ]
+  };
+  R["18"] = {
+    h: [
+      "[DATA] Jobs boom: 900k added in March as reopening accelerates",
+      "[WIRE] Colonial Pipeline cyberattack triggers East Coast gas panic"
+    ],
+    s: [
+      "@MainStreetCEO: Hiring signs on every store on the strip. Nobody applying. Weird recovery.",
+      "@TechFounder: One ransomware gang shut down half the country's fuel. Critical infrastructure, folks."
+    ]
+  };
+  R["19"] = {
+    h: [
+      "[WIRE] Afghanistan falls to Taliban in days as US withdraws; chaotic Kabul airlift",
+      "[DATA] Delta wave overwhelms hospitals in the South"
+    ],
+    s: [
+      "@VetForPeace: Twenty years, and it unraveled in a weekend. Everyone who predicted it was ignored.",
+      "@NursesUnion: Back to full ICUs. Nurses quitting in waves. We are the resource that ran out."
+    ]
+  };
+  R["20"] = {
+    h: [
+      "[DATA] Inflation hits 6.8%, fastest since 1982",
+      "[WIRE] Build Back Better stalls in the Senate; Manchin says no"
+    ],
+    s: [
+      "@SoccerMomOH: Turkey is $30. Gas is $3.50. 'Transitory' better mean soon.",
+      "@UnionBoss: Two senators are governing the whole country. Dems had the trifecta and dropped it."
+    ]
+  };
+  R["21"] = {
+    h: [
+      "[WIRE] Russia invades Ukraine; sanctions and grain shock ripple worldwide",
+      "[DATA] Inflation reaches 7.9%; Fed signals rapid rate hikes"
+    ],
+    s: [
+      "@EconProf: War + supply chains + stimulus tailwind = the inflation everyone said was impossible.",
+      "@FarmerIA: Diesel at $5. Fertilizer doubled. The war is being priced at my pump."
+    ]
+  };
+  R["22"] = {
+    h: [
+      "[WIRE] Supreme Court overturns Roe v. Wade; protests nationwide",
+      "[DATA] Inflation peaks at 9.1%, a 40-year high"
+    ],
+    s: [
+      "@CollegeKid22: rights my mom had my whole life, gone by lunchtime on a friday",
+      "@EconProf: 9.1%. The fastest tightening cycle in decades starts now. Buckle up, housing."
+    ]
+  };
+  R["23"] = {
+    h: [
+      "[WIRE] CHIPS Act and Inflation Reduction Act signed — $500B+ in industrial and climate spending",
+      "[WIRE] Biden forgives $10-20k in student debt; courts intervene"
+    ],
+    s: [
+      "@TechFounder: Subsidized fabs, subsidized batteries, subsidized chips. Industrial policy is back and doesn't care who notices.",
+      "@UnionBoss: IRA is the biggest climate bill ever and nobody can name three things in it. Messaging fail."
+    ]
+  };
+  R["24"] = {
+    h: [
+      "[POLITICS] Midterms: predicted red wave fizzles; Senate stays blue",
+      "[WIRE] Rail strike averted with labor deal; freight keeps moving"
+    ],
+    s: [
+      "@EconProf: Dobbs moved the map. Social-issue salience beat the inflation referendum theory.",
+      "@RustBeltDiner: inflation is eating us alive and the election was about everything but it. strange"
+    ]
+  };
+  R["25"] = {
+    h: [
+      "[WIRE] Silicon Valley Bank collapses in 48 hours; regulators guarantee all deposits",
+      "[DATA] Treasury warns debt ceiling breach could come by summer"
+    ],
+    s: [
+      "@WallStWhale: A bank died from holding... Treasuries. The safest asset on earth. Incredible.",
+      "@FedWatcher: BTFD is now official policy spelled with three letters: BTFP."
+    ]
+  };
+  R["26"] = {
+    h: [
+      "[WIRE] Debt-ceiling deal cuts spending and claws back IRS funds",
+      "[TECH] AI boom erupts; chatbots pass bar exams and spook regulators"
+    ],
+    s: [
+      "@MainStreetCEO: My intern writes better code with the AI than the two juniors I was about to hire.",
+      "@EconProf: We spent the debt fight on $20B of IRS funding. The deficit math is theater now."
+    ]
+  };
+  R["27"] = {
+    h: [
+      "[WIRE] UAW strikes all three Detroit automakers simultaneously — a first",
+      "[DATA] Overdose deaths ease from record but fentanyl still kills 70k+/yr"
+    ],
+    s: [
+      "@UnionBoss: Strike funds full, ranks unified. The 'impossible' strike won in six weeks.",
+      "@NursesUnion: 70,000 a year is a 737 crash every two days. Still no emergency declaration."
+    ]
+  };
+  R["28"] = {
+    h: [
+      "[WIRE] Hamas attack kills 1,200 in Israel; Gaza war begins, campuses erupt",
+      "[POLITICS] McCarthy ousted as Speaker in historic first; House paralyzed for weeks"
+    ],
+    s: [
+      "@PastorMike: The world cracked open on Oct 7 and nothing has been normal since.",
+      "@OccupyKid: the house has no speaker. the government runs on continuing resolutions. cool system"
+    ]
+  };
+  R["29"] = {
+    h: [
+      "[WIRE] Border crossings hit record; mayors of blue cities demand federal help",
+      "[POLITICS] Trump trials proceed as primary season confirms a rematch"
+    ],
+    s: [
+      "@SoccerMomOH: My city's shelters are full and the feds are pointing at each other. Somebody govern.",
+      "@EconProf: A rematch nobody wanted. Democracy's choicest option: two guys both under 45% approval."
+    ]
+  };
+  R["30"] = {
+    h: [
+      "[WIRE] Biden falters in debate; drops out in July, Harris becomes nominee",
+      "[WIRE] Trump survives assassination attempt at Pennsylvania rally"
+    ],
+    s: [
+      "@CollegeKid22: the debate ended a presidency in 90 minutes. brutal",
+      "@UnionBoss: A bullet grazed an ex-president's ear on live TV. This is not a normal country anymore."
+    ]
+  };
+  R["31"] = {
+    h: [
+      "[POLITICS] Harris-Trump race tightens; seven swing states decide everything",
+      "[MARKETS] Fed begins cutting into a still-firm economy"
+    ],
+    s: [
+      "@EconProf: Soft landing inflation AND rate cuts in an election year. Powell threading a needle in a wind tunnel.",
+      "@RustBeltDiner: both candidates came to my diner county. we must be important or very unlucky"
+    ]
+  };
+  R["32"] = {
+    h: [
+      "[POLITICS] Trump wins 312 electoral votes; GOP sweeps Senate, holds House",
+      "[WIRE] Hurricanes Helene and Milton devastate the Southeast"
+    ],
+    s: [
+      "@EconProf: Popular vote, Electoral College, Senate, House, courts. That's a realignment with paperwork.",
+      "@SoccerMomOH: Helene took my cousin's whole town. FEMA trailers still haven't arrived."
+    ]
+  };
+  R["33"] = {
+    h: [
+      "[WIRE] Trump inaugurated; DOGE task force moves to gut federal agencies",
+      "[WIRE] Deportation raids expand; tariffs threatened on Mexico, Canada, China"
+    ],
+    s: [
+      "@MainStreetCEO: The new team wants to delete half the federal workforce by email. What could go wrong.",
+      "@VetForPeace: Governing by executive order at 2am. Institutions running on fumes."
+    ]
+  };
+  R["34"] = {
+    h: [
+      "[WIRE] 'Liberation Day' tariffs: 10-50% duties announced; markets whipsaw, allies retaliate",
+      "[WIRE] Courts block pieces of the tariff regime; legal fight reaches Supreme Court"
+    ],
+    s: [
+      "@WallStWhale: Biggest single-day melt-up and melt-down in years, same week. Tariff roulette.",
+      "@FarmerIA: They tariffed my export markets AGAIN. 2018 playbook, worse handwriting."
+    ]
+  };
+  R["35"] = {
+    h: [
+      "[WIRE] 'One Big Beautiful Bill' signed: tax cuts extended, Medicaid and SNAP trimmed",
+      "[WIRE] Epstein files release rocks Washington; resignations follow"
+    ],
+    s: [
+      "@EconProf: $4-5T of tax cuts plus safety-net trims, per CBO math. The deficit debate is officially dead.",
+      "@NursesUnion: Medicaid work requirements mean paperwork hurdles for people on oxygen. Design cruelty."
+    ]
+  };
+  R["36"] = {
+    h: [
+      "[WIRE] Longest shutdown in history ends after 43 days; federal data resumes",
+      "[POLITICS] Affordability dominates as midterm machine spins up"
+    ],
+    s: [
+      "@SoccerMomOH: Groceries, rent, insurance, tuition. 'Affordability' is the whole election now.",
+      "@EconProf: Two of the three deficit hawks retired. The third bought bitcoin."
+    ]
+  };
+
+  window.NEWS.scenarios = {
+    realign2016: {
+      turns: R,
+      generic: {
+        h: [
+          "[WIRE] Midterm campaigns hit full stride as affordability dominates every ad",
+          "[MARKETS] Fed walks the line between rate cuts and sticky services inflation",
+          "[WIRE] Tariff regime reshapes supply chains; importers pass costs to shelves",
+          "[TECH] AI rollout remakes white-collar work; Washington drafts its first guardrails",
+          "[WIRE] Debt ceiling and expiring tax cuts loom over the next Congress",
+          "[DATA] Deficit tops $2T as interest becomes the fastest-growing line item",
+          "[WIRE] States fill the policy vacuum with their own health, energy and labor bills",
+          "[POLITICS] Your caucus weighs a breakout run as the old parties bleed approval"
+        ],
+        s: [
+          "@EconProf: r > g again. The interest line now eats the entire discretionary budget. Nobody campaigns on arithmetic.",
+          "@SoccerMomOH: insurance up, groceries up, rent up, paycheck flat. 'strong economy' for whom",
+          "@CollegeKid22: the new party is the only one not mailing me a doom flyer. noted",
+          "@RustBeltDiner: both old parties lost my county. whoever shows up here next wins it",
+          "@UnionBoss: tariff jobs or tariff prices — pick one, they said. we got prices.",
+          "@TechFounder: the government is running on executive orders and court injunctions. stable genius governance",
+          "@MainStreetCEO: can't hire, can't build, can't plan. give me ONE predictable quarter",
+          "@FedWatcher: the Fed is the only functioning institution left. that's the tweet"
+        ]
+      }
+    }
+  };
+})();
 
 // Reactions when the player changes a policy. Keys = policy ids from data.js.
 window.NEWS.actReacts = {
