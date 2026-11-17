@@ -800,5 +800,150 @@ window.SCENARIOS = {
     midtermStart: 8,             // Q4 2018, then every 16
     electionCycle: 16,
     pollingActual: ['republican', 'democrat']  // polling chart: R & D actual + yours
+  },
+  // v0.5 (WS6, P4): "Dimensions Beyond Energy" — the 2030 fusion-transition
+  // crisis, inspired by the DBE_V0 research branch (read-only). Single-track:
+  // your party holds the presidency and both chambers; the DBE device's
+  // macro numbers are OUR calibration chained to the realign2016 ACTUAL
+  // projection end (turn 56 ≈ Q4 2030). Macro shocks live in
+  // js/scenario_2030.js (window.EVENTS.dbe + REALWORLD_EVENTS.scenarios.dbe2030).
+  dbe2030: {
+    id: 'dbe2030', name: 'Dimensions Beyond Energy', event: 'dbe',
+    tagline: 'Q1 2030. A quantum-assisted fusion device has crossed net-electric breakeven. Your party holds the presidency. Manage the transition from energy scarcity to abundance — stranded assets, Q-Day, the monopoly fight, and the politics of post-work.',
+    dualTrack: false,
+    keepPlayingOnLoss: true,     // the transition outlives any one administration
+    start: {
+      turn: 0, year: 2030, quarter: 1,
+      clockYear: 2030,             // turn 1 = Q1 2030
+      gdp_level: 25974.7,          // chained-2017 $bn, from the realign2016 projection (≈2030)
+      priceIndex: 37429.4 / 25974.7, // nominal/real ratio at the projection anchor
+      unemployment: 4.3,
+      debt_gdp: 129.1,             // gross federal debt ≈ % GDP, projection end
+      inflation: 2.0,
+      med_income: 90473,           // projection-track median HH income
+      homelessness: 811,           // thousands
+      overdoses: 61477,            // annual deaths
+      incarcerated: 1.88,          // millions
+      sentiment: 45,               // polarized era, but a hopeful shock is landing
+      legitimacy: 52,
+      // a governing mandate fresh off the 2028 win — above water, but not safe
+      approval: { workers: 54, capitalists: 46, youth: 52, seniors: 48, religious: 47, immigrants: 51, technocrats: 58 },
+      interest: { base: 3.2, knee: 110, slope: 0.05 }, // era-calibrated: 2030s, higher-rate world
+      pc: 100, funds: 100,
+      influence: 0, influencePerTurn: 0, influenceCap: 0,   // single-track
+      determinants: { education: 54.6, innovation: 85.4, competitiveness: 76.5, military: 88.5, trade: 58.8, output: 81.2, fincenter: 90.0, reserve_fx: 68.0 },
+      party: { house: 235, senate: 52, governors: 26, president: true }
+    },
+    histLastTurn: 0,               // no ACTUAL overlay — this is a speculative branch
+    electionStart: 12,             // Q4 2032, then every 16 (2036, 2040)
+    midtermStart: 4,               // Q4 2030, then every 16 (2034, 2038)
+    electionCycle: 16,
+    pollingActual: null
+  }
+};
+
+/* ---- v0.5: Act <-> Budget redundancy links (spec: spec_act_budget_links.md) ----
+   When an Act absorbs a budget line's function, cutting that line is cheap and
+   low-backlash; the Act then CARRIES the burden, and repeal/stall snaps the need
+   back over `snapbackTurns` turns. coeff>0 substitute/enable; coeff<0 = the Act
+   RAISES the line's importance (inverse badge, cuts cost MORE). */
+window.ACT_BUDGET_LINKS = {
+  version: 1,
+  constants: {
+    deletePcBase: 10,
+    deletePcDiscount: 0.8,      // PC x (1 - 0.8*R), min 1
+    groupFxAbsorptionMult: 0.5, // group fx absorbed at R*eff*0.5
+    snapbackTurns: 4,
+    badgeFull: 0.5,
+    badgePartial: 0.15,
+    consolidateFullR: 0.85,     // >= suggest 0%; < suggest 1-R
+    overlapDemandPenalty: 0.5,  // dual-track double-pay: demand fx of overlap halved
+    uncoveredBelow: 0.15        // R below this with a cut line -> UNCOVERED NEED
+  },
+  acts: {
+    ubi: { links: [
+      { option: 'dividend', target: 'social_security',         coeff: 0.60, eff: 0.85, mode: 'substitute', rationale: 'A $1,000/mo floor replaces the bottom half of pension benefits.' },
+      { option: 'dividend', target: 'social_security/oasi',    coeff: 0.65, eff: 0.85, mode: 'substitute', rationale: 'Old-age cash is the most substitutable benefit.' },
+      { option: 'dividend', target: 'social_security/di',      coeff: 0.40, eff: 0.80, mode: 'substitute', rationale: 'UBI cannot do disability medical determination.' },
+      { option: 'dividend', target: 'income_security',         coeff: 0.80, eff: 0.90, mode: 'substitute', rationale: 'Unconditional cash replaces most means-tested support.' },
+      { option: 'dividend', target: 'income_security/snap',    coeff: 1.00, eff: 0.90, mode: 'substitute', rationale: 'Food stamps are cash-like; fully absorbed.' },
+      { option: 'dividend', target: 'income_security/ssi',     coeff: 0.80, eff: 0.85, mode: 'substitute', rationale: 'Mostly absorbed; residual for high-need cases.' },
+      { option: 'dividend', target: 'income_security/eitc',    coeff: 0.70, eff: 0.95, mode: 'substitute', rationale: 'Income-support function covered, work-conditionality dropped.' },
+      { option: 'dividend', target: 'income_security/ui',      coeff: 0.50, eff: 0.80, mode: 'substitute', rationale: 'UI is wage-replacement and countercyclical; UBI only floors.' },
+      { option: 'dividend', target: 'income_security/housing', coeff: 0.40, eff: 0.70, mode: 'substitute', rationale: '$1,000/mo does not pay rent in high-cost metros.' },
+      { option: 'dividend', target: 'income_security/other',   coeff: 0.60, eff: 0.85, mode: 'substitute', rationale: 'Residual cash programs largely substitutable.' }
+    ]},
+    welfare: { links: [
+      { option: 'expanded', target: 'income_security',      coeff: 0.35, eff: 0.90, mode: 'substitute', rationale: 'Expansion duplicates existing means-tested programs.' },
+      { option: 'cash',     target: 'income_security',      coeff: 0.60, eff: 0.90, mode: 'substitute', rationale: 'Cash transfers replace in-kind bureaucracy.' },
+      { option: 'cash',     target: 'income_security/snap', coeff: 0.90, eff: 0.90, mode: 'substitute', rationale: 'Most cash-like child line.' },
+      { option: 'ubi',      target: 'income_security',      coeff: 0.75, eff: 0.90, mode: 'substitute', rationale: 'Welfare-consolidation UBI absorbs income security (not pensions).' }
+    ]},
+    healthcare: { links: [
+      { option: 'public',    target: 'medicaid',                 coeff: 0.50, eff: 0.90, mode: 'substitute', rationale: 'Public option absorbs non-disabled adult Medicaid population.' },
+      { option: 'public',    target: 'medicare',                 coeff: 0.10, eff: 0.90, mode: 'substitute', rationale: 'Seniors stay on Medicare.' },
+      { option: 'public',    target: 'health',                   coeff: 0.20, eff: 0.85, mode: 'substitute', rationale: 'Some direct-service programs fold into the option.' },
+      { option: 'universal', target: 'medicare',                 coeff: 0.90, eff: 0.95, mode: 'substitute', rationale: 'Universal coverage absorbs Medicare as a payer; senior supplements remain.' },
+      { option: 'universal', target: 'medicaid',                 coeff: 0.95, eff: 0.95, mode: 'substitute', rationale: 'Medicaid is almost purely a payer for the poor.' },
+      { option: 'universal', target: 'health',                   coeff: 0.50, eff: 0.85, mode: 'substitute', rationale: 'Direct-service health half absorbed; research lines untouched.' },
+      { option: 'universal', target: 'health/nih',               coeff: 0.00, eff: 0.00, mode: 'substitute', rationale: 'Research is not care delivery.' },
+      { option: 'universal', target: 'health/cdc',               coeff: 0.10, eff: 0.80, mode: 'substitute', rationale: 'Prevention still needed.' },
+      { option: 'universal', target: 'veterans/va_health',       coeff: 0.50, eff: 0.80, mode: 'substitute', rationale: 'Vets can use universal care; service-connected care remains.' },
+      { option: 'universal', target: 'income_security/ssi',      coeff: 0.15, eff: 0.80, mode: 'enable',     rationale: 'Some SSI enrollment is Medicaid-driven.' },
+      { option: 'universal', target: 'newsector:mental_health',  coeff: 0.50, eff: 0.80, mode: 'substitute', rationale: 'Treatment capacity folds into universal care.' }
+    ]},
+    military: { links: [
+      { option: 'cut25', target: 'defense', coeff: 0.25, eff: 1.00, mode: 'enable', rationale: 'The Act already reallocates 25%; further cuts within that share are discounted.' },
+      { option: 'cut50', target: 'defense', coeff: 0.50, eff: 1.00, mode: 'enable', rationale: 'The Act already reallocates 50%.' },
+      { option: 'cut25', target: 'science', coeff: 0.10, eff: 0.80, mode: 'substitute', rationale: 'R&D moved to cyber/health overlaps civilian science.' },
+      { option: 'cut50', target: 'science', coeff: 0.20, eff: 0.80, mode: 'substitute', rationale: 'Larger R&D overlap.' }
+    ]},
+    drug: { links: [
+      { option: 'decriminalized', target: 'justice',       coeff: 0.15, eff: 1.00, mode: 'enable', rationale: 'Fewer drug cases; courts and prisons lighten.' },
+      { option: 'legal',          target: 'justice',       coeff: 0.35, eff: 1.00, mode: 'enable', rationale: 'Legal market removes most drug enforcement.' },
+      { option: 'legal',          target: 'justice/other', coeff: 0.70, eff: 1.00, mode: 'enable', rationale: 'DEA/ATF drug-war mission mostly obsolete.' },
+      { option: 'legal',          target: 'justice/bop',   coeff: 0.40, eff: 1.00, mode: 'enable', rationale: 'Drug offenders are a large share of federal prisoners.' },
+      { option: 'legal',          target: 'health',        coeff: -0.10, eff: 0.00, mode: 'enable', rationale: 'Legalization raises the need for treatment capacity.' }
+    ]},
+    law: { links: [
+      { option: 'community', target: 'justice/bop',    coeff: 0.15, eff: 1.00, mode: 'enable', rationale: 'Diversion lowers prison intake.' },
+      { option: 'reform',    target: 'justice/bop',    coeff: 0.35, eff: 1.00, mode: 'enable', rationale: 'Sentencing reform shrinks the prison population.' },
+      { option: 'reform',    target: 'justice/courts', coeff: 0.20, eff: 1.00, mode: 'enable', rationale: 'Fewer low-level prosecutions.' },
+      { option: 'tough',     target: 'justice',        coeff: -0.15, eff: 0.00, mode: 'enable', rationale: 'Tough-on-crime raises enforcement demand.' }
+    ]},
+    housing: { links: [
+      { option: 'housingfirst', target: 'income_security/housing', coeff: 0.60, eff: 0.90, mode: 'substitute', rationale: 'Housing First IS housing assistance, delivered by the Act.' },
+      { option: 'housingfirst', target: 'health',                  coeff: 0.10, eff: 0.80, mode: 'enable',     rationale: 'Stable housing reduces emergency health load.' },
+      { option: 'zoning',       target: 'income_security/housing', coeff: 0.30, eff: 1.00, mode: 'enable', minRamp: 0.75, rationale: 'More supply means less voucher need (long lag).' },
+      { option: 'rentban',      target: 'income_security/housing', coeff: 0.20, eff: 0.60, mode: 'enable', rationale: 'Rent control caps rents but supply collapse keeps vouchers needed; weak, lossy.' }
+    ]},
+    lvt: { links: [
+      { option: 'enact', target: 'income_security/housing', coeff: 0.25, eff: 0.80, mode: 'enable', rationale: 'Cheaper land/rents reduce voucher need.' },
+      { option: 'enact', target: 'other',                   coeff: 0.10, eff: 0.90, mode: 'substitute', rationale: 'LVT revenue absorbs small miscellaneous programs.' }
+    ]},
+    education: { links: [
+      { option: 'vocational', target: 'education/other',          coeff: 0.50, eff: 0.85, mode: 'substitute', rationale: 'Vocational track absorbs adult-ed/retraining.' },
+      { option: 'yearround',  target: 'education/k12',            coeff: 0.55, eff: 0.85, mode: 'substitute', rationale: 'Year-round restructures K-12 delivery; Title I equity role remains.' },
+      { option: 'full',       target: 'education/k12',            coeff: 0.60, eff: 0.85, mode: 'substitute', rationale: 'Full reform absorbs most of the federal K-12 role.' },
+      { option: 'full',       target: 'education/pell',           coeff: 0.40, eff: 0.85, mode: 'substitute', rationale: 'University track subsidizes tuition; Pell access function remains.' },
+      { option: 'full',       target: 'science',                  coeff: 0.15, eff: 0.80, mode: 'substitute', rationale: 'University R&D overlaps NSF/DOE science.' },
+      { option: 'full',       target: 'newsector:universal_prek', coeff: 0.70, eff: 0.85, mode: 'substitute', rationale: 'Full reform absorbs pre-K.' }
+    ]},
+    immigration: { links: [
+      { option: 'reformed',    target: 'justice/other',   coeff: 0.20, eff: 0.90, mode: 'enable', rationale: 'Legal pathways shrink enforcement load.' },
+      { option: 'open',        target: 'justice/other',   coeff: 0.20, eff: 0.90, mode: 'enable', rationale: 'Legal pathways shrink enforcement load.' },
+      { option: 'restrictive', target: 'justice',         coeff: -0.15, eff: 0.00, mode: 'enable', rationale: 'Restriction raises enforcement demand.' },
+      { option: 'reformed',    target: 'income_security', coeff: 0.05, eff: 0.80, mode: 'enable', rationale: 'Formalized workers need less emergency support.' }
+    ]},
+    tax: { links: [
+      { option: null, minStrength: 50, target: 'income_security/eitc', coeff: 0.40, eff: 0.90, mode: 'substitute', rationale: 'A broad VAT prebate absorbs EITC refundability once VAT replaces >=50% of income tax.' },
+      { option: null, minStrength: 50, target: 'other',                coeff: 0.10, eff: 0.85, mode: 'enable',     rationale: 'Simpler tax code shrinks admin overhead.' }
+    ]},
+    // Revenue / process / spending acts never make spending redundant — explicit empty lists.
+    tariffs:   { links: [] },
+    church:    { links: [] },
+    media:     { links: [] },
+    democracy: { links: [] },
+    infra:     { links: [] }
   }
 };
