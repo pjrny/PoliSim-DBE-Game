@@ -12,11 +12,11 @@ window.MARKET_DATA = {
   "meta": {
     "built": "2026-11-17",
     "source": "Yahoo Finance historical monthly closes via agent-gw yahoo_finance plugin (yfinance; split/dividend-adjusted monthly OHLC). Quarter value = last monthly close of the calendar quarter (Mar/Jun/Sep/Dec row).",
-    "turnMapping": "realign2016: turn 0 = Q4 2016, turn 1 = Q1 2017 … turn 36 = Q4 2025. gfc2008: turn 0 = Q4 2007, turn 1 = Q1 2008 … turn 20 = Q4 2012.",
+    "turnMapping": "realign2016: turn 0 = Q4 2016, turn 1 = Q1 2017 \u2026 turn 36 = Q4 2025. gfc2008: turn 0 = Q4 2007, turn 1 = Q1 2008 \u2026 turn 20 = Q4 2012.",
     "skippedTickers": [
       "SIVB"
     ],
-    "notes": "SIVB (Silicon Valley Bank): Yahoo Finance dropped the delisted symbol and its SIVBQ OTC successor entirely, so no prices are available — prices are null and the UI shows the DELISTED/headline-only row from Q2 2023 market events. Old GM, Bear Stearns (BSC) and Lehman (LEH) pre-2010 symbols are not on Yahoo; they render as headline-only rows from realworld_events marketEvents."
+    "notes": "SIVB (Silicon Valley Bank): Yahoo Finance dropped the delisted symbol and its SIVBQ OTC successor entirely, so no prices are available \u2014 prices are null and the UI shows the DELISTED/headline-only row from Q2 2023 market events. Old GM, Bear Stearns (BSC) and Lehman (LEH) pre-2010 symbols are not on Yahoo; they render as headline-only rows from realworld_events marketEvents."
   },
   "scenarios": {
     "realign2016": {
