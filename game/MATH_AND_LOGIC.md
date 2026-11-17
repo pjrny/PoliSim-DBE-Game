@@ -371,6 +371,27 @@ on page load, and can be shared as JSON (Download/Load on the Enact step).
 Deletion removes the def from `POLICY_DEFS`/`POLICY_MAP`/localStorage and is
 blocked while the Act is in force mid-game.
 
+### v0.5.1 presentation & UX notes (user-feedback patch)
+- **World chart, dual axes (user decision).** The game's determinants run hot
+  (USA composite ≈ 77) vs the world dataset's cross-country normalization
+  (USA 2008 S = 58.8), so a single shared scale hid a ~19 pt calibration gap.
+  Per the user's choice, the chart now plots dataset nations on the left axis
+  and sim/ACTUAL on a right axis (both 0–100) — the gap stays visible rather
+  than being silently renormalized away.
+- **Cycle visualization consolidated (user request).** Big Cycle determinant
+  gauges moved from Dashboard → top of the Network & Compass tab, so all
+  cycle views (gauges, world chart, compass, stage classifier) live on one tab
+  with a single computation path; the Dashboard keeps economy + market panels.
+- **Event modal tab-gating + badge fix (freeze bug).** The event popup
+  auto-opens only on the Dashboard tab; elsewhere the pending-event badge
+  pulses inside Next Quarter and the player responds within the 1-turn window.
+  Root cause of the reported freeze: the badge's `stopPropagation()` ran
+  unconditionally, so on side tabs the Next click never advanced the turn and
+  the gated modal never opened. The badge now swallows the click only on the
+  Dashboard (where the modal will open); elsewhere the click bubbles through.
+- **Social Democracy label gate** stays at 140% entitlements (user decision;
+  spec suggested 125%, gate trips at 140 — see test xvii comment).
+
 ## Source references
 
 - **Okun's law** — Okun (1962); Ball, Leigh & Loungani, IMF WP/13/10 (2013).

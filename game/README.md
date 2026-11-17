@@ -1,3 +1,12 @@
+# PoliSim-DBE — v0.5.1
+
+**v0.5.1 adds (user-feedback patch):**
+- **Freeze fix** — the event popup no longer hijacks the whole screen on side tabs. It auto-opens only on the Dashboard; on other tabs a pulsing badge inside Next Quarter reminds you, and the turn always advances (previously the badge swallowed the click and the game appeared frozen).
+- **Dual-axis world chart** — the six-nation dataset runs on the left axis and your simulation/actual lines on the right axis, so the known calibration gap between the two scales is visible instead of being silently merged.
+- **One cycle home** — the Big Cycle determinant gauges moved from the Dashboard into the Network & Compass tab, consolidating every cycle visualization in one place.
+
+*v0.5 notes follow.*
+
 # PoliSim-DBE — v0.5
 
 **v0.5 adds:**

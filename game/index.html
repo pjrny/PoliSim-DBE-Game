@@ -203,26 +203,13 @@
       <div id="market-strip" class="overflow-hidden"></div>
     </div>
 
-    <div class="card mb-5">
-      <h2 class="card-title">The Big Cycle — 8 Determinants of Power
-        <span class="text-[11px] font-normal text-stone-400">(Dalio: education · innovation · competitiveness · military · trade · output · financial center · reserve currency)</span>
-      </h2>
-      <div class="grid md:grid-cols-2 gap-x-8 gap-y-2" id="det-gauges"></div>
-      <div class="mt-3 flex items-center gap-3 text-xs">
-        <span class="text-stone-500">Composite power score:</span>
-        <span id="power-score" class="font-bold text-stone-800"></span>
-        <span id="power-phase" class="badge bg-amber-700 text-white cursor-help" data-tip="phase"></span>
-        <a href="MATH_AND_LOGIC.md" class="text-teal-700 underline cursor-pointer" data-tip="formulas">All formulas ↗</a>
-      </div>
-    </div>
-
     <div class="grid md:grid-cols-2 gap-5">
       <div class="card"><h3 class="card-title-sm">Real GDP ($bn, chained 2017)</h3><div class="chart-box"><canvas id="ch-gdp"></canvas></div></div>
       <div class="card"><h3 class="card-title-sm">Federal Debt (% of GDP)</h3><div class="chart-box"><canvas id="ch-debt"></canvas></div></div>
       <div class="card"><h3 class="card-title-sm">Unemployment (%)</h3><div class="chart-box"><canvas id="ch-unemp"></canvas></div></div>
       <div class="card"><h3 class="card-title-sm">Homelessness (thousands)</h3><div class="chart-box"><canvas id="ch-homeless"></canvas></div></div>
     </div>
-    <p class="text-[11px] text-stone-400 mt-2">Grey dashed = actual US history (annual at Q4 through 2025; in The Realignment, the scripted quarter-by-quarter track). Solid teal = your simulation. Endless mode: years roll on.</p>
+    <p class="text-[11px] text-stone-400 mt-2">Grey dashed = actual US history (annual at Q4 through 2025; in The Realignment, the scripted quarter-by-quarter track). Solid teal = your simulation. Endless mode: years roll on. Big-Cycle determinants & power score now live in <b>Network &amp; Compass</b>.</p>
   </section>
 
   <!-- ===================== ACTS ===================== -->
@@ -278,6 +265,18 @@
 
   <!-- ===================== NETWORK ===================== -->
   <section id="tab-network" class="tab-pane hidden">
+    <div class="card mb-5">
+      <h2 class="card-title">The Big Cycle — 8 Determinants of Power
+        <span class="text-[11px] font-normal text-stone-400">(Dalio: education · innovation · competitiveness · military · trade · output · financial center · reserve currency)</span>
+      </h2>
+      <div class="grid md:grid-cols-2 gap-x-8 gap-y-2" id="det-gauges"></div>
+      <div class="mt-3 flex items-center gap-3 text-xs">
+        <span class="text-stone-500">Composite power score:</span>
+        <span id="power-score" class="font-bold text-stone-800"></span>
+        <span id="power-phase" class="badge bg-amber-700 text-white cursor-help" data-tip="phase"></span>
+        <a href="MATH_AND_LOGIC.md" class="text-teal-700 underline cursor-pointer" data-tip="formulas">All formulas ↗</a>
+      </div>
+    </div>
     <!-- v0.5 Political Compass suite (reverse-engineered Filteries engine) -->
     <div class="card mb-5" id="compass-card">
       <h2 class="card-title">🧭 Political Compass <span class="text-[10px] font-normal text-stone-400">— your governing philosophy, scored on 8 axes (SIM track)</span>
@@ -296,7 +295,7 @@
     </div>
     <div class="card mb-5" id="world-card">
       <h2 class="card-title">🌍 World Big Cycle — the great powers, 2000–2024</h2>
-      <p class="text-[11px] text-stone-400 mb-2">Composite power score S (mean of the 8 determinants, 0–100) from real-world data. Your simulated America is overlaid in emerald as you play; in The Realignment the dashed grey line is the scripted ACTUAL timeline.</p>
+      <p class="text-[11px] text-stone-400 mb-2">Composite power score S (mean of the 8 determinants, 0–100) from real-world data. Your simulated America is overlaid in emerald as you play; in The Realignment the dashed grey line is the scripted ACTUAL timeline. <b>Two scales, on purpose:</b> nations are normalized cross-country (left axis — USA 2008 sits at 58.8); your simulation runs on the game's internal calibration (right axis) — read the vertical gap between the emerald line and the teal nation line as the calibration difference between the two, not as a simulation error.</p>
       <div class="chart-box-lg"><canvas id="ch-world"></canvas></div>
       <p id="world-sim-note" class="text-[11px] text-stone-400 italic mt-1">Advance a quarter to trace your America onto the world chart.</p>
       <div id="world-standings" class="flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-stone-600 mt-2"></div>

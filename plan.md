@@ -49,7 +49,7 @@ Features:
 6. **UX**: scenario picker modal, grouped Acts rail, sub-dept accordion with ⟲ restore, hd-influ/hd-scenario header badges, glossary entries for all new mechanics, research evidence panels.
 Validation: node test.js all green; node --check clean; scenario clock/election timing decoupled from hardcoded 2008 (clockYearOf/turnToYear/turnToQuarter + electConsts).
 
-## Phase 2.6 — v0.5 Ecosystem Upgrade (IN PROGRESS)
+## Phase 2.6 — v0.5 Ecosystem Upgrade ✅ DELIVERED 2026-11-17 (v0.5.1 polish 2026-11-18)
 Source: user priority message 2026-11-17 + uploaded specs (scoring-engine-spec.md, big-cycle-structure.md, report(1).pdf).
 - P1: Act↔budget redundancy system (spec delivered: spec_act_budget_links.md) · real-world events + public-statement reaction popups (spec: spec_realworld_events.md) · multi-nation Big Cycle graph (world_powers_data.json) · Act/budget balance · repeal UX polish · more population/company reactions · educational definitions · UX/UI pass
 - P2: drag-and-drop "create your own Act" — Kimi estimates political/economic/metric effects from uploaded sources
@@ -66,9 +66,16 @@ Infra note: GDrive folder (G:\My Drive\APPS\Strategy Sim...) is user-local, not 
 - **WS6 P4 DBE 2030 scenario — DONE.** js/scenario_2030.js (EVENTS.dbe shock calendar + detShock channel, REALWORLD_EVENTS.scenarios.dbe2030 with 15 transition events + 5 market beats), SCENARIOS.dbe2030 registration (start chained to realign2016 projection end), engine detShock + keepPlayingOnLoss + start.approval override, tests (xviii), browser smoke verified (0 pageerrors). Repo read-only respected; repo's "stabilized money markets" deprioritized in favor of its own quantum-crypto destabilization material; 2038 vignette re-dated (breakeven 2030 → commercial viability 2038).
 - **WS7 P5 GLO-BUS market panel — DONE.** js/market_data.js (real Yahoo Finance quarter-end closes via agent-gw: 14 tickers × 37 quarters for realign2016, 10 × 21 for gfc2008; SIVB documented as skipped-no-data, headline-only row), Market card + marquee ticker strip on Dashboard, glossary mech_market, tests (xix), browser smoke verified.
 - **WS5 P2 custom-Act studio — DONE.** js/act_studio.js (6 Kimi-analyzed templates, honest keyword pre-fill heuristic, balance formula pc=clamp(6+3w,8,40)/upkeep/lag, buildDef validation, localStorage persistence + JSON export/import), engine registerCustomAct/unregisterCustomAct, 3-step wizard modal, custom cards with delete, glossary mech_studio, tests (xx), browser smoke verified (incl. reload-restore).
-- **WS0 GitHub push — v0.4 DONE (head f14a91f9, 13/13 SHA-verified, no secrets). v0.5 push in progress** (18 files, one-batch-per-commit + blob-SHA verify). Secrets policy unchanged.
+- **WS0 GitHub push — DONE.** v0.4: head f14a91f9, 13/13 SHA-verified. v0.5: head f63e51bd, 18/18 SHA-verified, no secrets (4 junk probe commits from an incident were cleaned via delete_file; tree verified clean). test.js stays at game/test.js (matches v0.4 layout + index.html reference).
 - **Preview — v0.5 saved (website_version_manager version 0996a90).**
 - **Open calibration decisions for user:** (1) world-chart scale mismatch (see WS3); (2) Social Democracy label gate at 140% vs spec 125% (see WS4).
+
+### v0.5.1 user-feedback patch (2026-11-18) — calibration decisions + freeze fix
+- **DECIDED (1) world-chart scale:** user chose **dual axes** over renormalize/rescale — dataset S on left axis, game sim/act on right axis, so the ~19 pt calibration gap is visible rather than hidden. Implemented in `makeWorldLine` (y1 scale, sim/ACTUAL → yAxisID y1).
+- **DECIDED (2) Social Democracy gate:** user said "if it trips at 140 keep it at that" — gate stays at 140% entitlements (spec said 125%; documented in test xvii comment).
+- **Consolidation (user request):** Big Cycle determinant gauges card **moved off the Dashboard into the top of the Network & Compass tab** — one "cycle home", no duplicate visualizations/calculations across tabs. Dashboard keeps economy charts + market card; world chart caption explains the two-scale design.
+- **Freeze root cause + fix:** user reported the game "froze" near the world-chart section. Diagnosis: NOT performance (40-turn stress: avg 238 ms/turn, no slow turns) — it was event-modal click interception, in two layers: (a) the full-screen event modal auto-opened on every tab and swallowed all clicks (fixed: `maybeOpenEvent` now gated to the Dashboard tab; elsewhere the pending-event badge pulses and the player responds when ready); (b) deeper bug found during verification — the `#ev-pending-badge` inside `#btn-next` called `stopPropagation()` unconditionally, so on non-dashboard tabs the click never reached the advance handler and the gated modal never opened: turn never advanced = looks frozen. Fixed: badge only swallows the click on the Dashboard (where the modal will actually open); everywhere else the click bubbles to Next Quarter.
+- **Verified:** `node test.js` 20/20 blocks green; freeze regression (modal never auto-opens on side tabs, dashboard auto-open intact); 40-turn stress clean; 0 pageerrors.
 
 ## Phase 3 — Cloudflare backend (Workers + D1)  [was Phase 2]
 - Read cloudflare:cloudflare-mcp-usage skill; create D1 database (games, turns, policies, metrics_history tables)
