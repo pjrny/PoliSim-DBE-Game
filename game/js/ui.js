@@ -85,9 +85,15 @@
   }
 
   /* ---------------- tabs ---------------- */
+  var currentTab = 'dashboard';   // v0.5.1: tracked so the event modal only auto-opens at home
+  function activeTabName() {
+    var b = document.querySelector('.tab-btn.tab-active');
+    return b ? b.dataset.tab : currentTab;
+  }
   $('tabs').addEventListener('click', function (ev) {
     var b = ev.target.closest('button[data-tab]');
     if (!b) return;
+    currentTab = b.dataset.tab;
     document.querySelectorAll('.tab-btn').forEach(function (x) { x.classList.remove('tab-active'); });
     b.classList.add('tab-active');
     document.querySelectorAll('.tab-pane').forEach(function (p) { p.classList.add('hidden'); });
@@ -1334,12 +1340,15 @@
     var ctx = $('ch-world');
     if (!ctx) return;
     var xMax = worldXMax();
+    // v0.5.1 dual axes: the dataset nations are normalized cross-country
+    // (USA 2008 S=58.8); the game-scale overlays run ~19 pts hot. Showing both
+    // axes makes the calibration gap explicit instead of hiding it.
     var datasets = WORLD_NATIONS.map(function (n) {
-      return { label: n.name, data: worldNationSeries(n.id), borderColor: n.color, backgroundColor: n.color, borderWidth: n.width, pointRadius: 0, tension: 0.25, fill: false, spanGaps: true };
+      return { label: n.name, data: worldNationSeries(n.id), borderColor: n.color, backgroundColor: n.color, borderWidth: n.width, pointRadius: 0, tension: 0.25, fill: false, spanGaps: true, yAxisID: 'y' };
     });
-    datasets.push({ label: 'The Top threshold (58)', data: [{ x: 2000, y: WORLD_TOP_S }, { x: xMax, y: WORLD_TOP_S }], borderColor: '#a8a29e', backgroundColor: '#a8a29e', borderWidth: 1.5, borderDash: [6, 4], pointRadius: 0, tension: 0, fill: false });
-    datasets.push({ label: 'USA — your simulation', data: worldSimSeries(), borderColor: WORLD_SIM_COLOR, backgroundColor: WORLD_SIM_COLOR, borderWidth: 3, pointRadius: 2, tension: 0.25, fill: false, spanGaps: true });
-    if (st.dualTrack) datasets.push({ label: 'USA — ACTUAL scripted', data: worldActualSeries(), borderColor: WORLD_ACT_COLOR, backgroundColor: WORLD_ACT_COLOR, borderWidth: 2, borderDash: [6, 4], pointRadius: 0, tension: 0.25, fill: false, spanGaps: true });
+    datasets.push({ label: 'The Top threshold (58)', data: [{ x: 2000, y: WORLD_TOP_S }, { x: xMax, y: WORLD_TOP_S }], borderColor: '#a8a29e', backgroundColor: '#a8a29e', borderWidth: 1.5, borderDash: [6, 4], pointRadius: 0, tension: 0, fill: false, yAxisID: 'y' });
+    datasets.push({ label: 'USA — your simulation (game scale)', data: worldSimSeries(), borderColor: WORLD_SIM_COLOR, backgroundColor: WORLD_SIM_COLOR, borderWidth: 3, pointRadius: 2, tension: 0.25, fill: false, spanGaps: true, yAxisID: 'y1' });
+    if (st.dualTrack) datasets.push({ label: 'USA — ACTUAL scripted (game scale)', data: worldActualSeries(), borderColor: WORLD_ACT_COLOR, backgroundColor: WORLD_ACT_COLOR, borderWidth: 2, borderDash: [6, 4], pointRadius: 0, tension: 0.25, fill: false, spanGaps: true, yAxisID: 'y1' });
     charts['ch-world'] = new Chart(ctx, {
       type: 'line',
       data: { datasets: datasets },
@@ -1354,8 +1363,14 @@
           },
           y: {
             min: 0, max: 100,
-            title: { display: true, text: 'Composite S', font: { size: 9 } },
+            title: { display: true, text: 'Dataset S (cross-country)', font: { size: 9 } },
             ticks: { font: { size: 9 } }, grid: { color: '#f5f5f4' }
+          },
+          y1: {
+            min: 0, max: 100, position: 'right',
+            title: { display: true, text: 'Game power S (sim/act)', font: { size: 9 }, color: '#0f766e' },
+            ticks: { font: { size: 9 }, color: '#0f766e' },
+            grid: { drawOnChartArea: false }
           }
         },
         plugins: { legend: { labels: { boxWidth: 10, font: { size: 9 } } } }
@@ -1980,7 +1995,12 @@
   function maybeOpenEvent() {
     updateEventBadge();
     if (eventModalOpen) return;
-    if (st.pendingEvents && st.pendingEvents.length && !st.over) openEventModal();
+    if (!(st.pendingEvents && st.pendingEvents.length && !st.over)) return;
+    // v0.5.1 freeze fix: only auto-open at home (Dashboard). On any other tab the
+    // full-screen modal made the game feel frozen — the badge pulses instead and
+    // the player responds when ready (still within the 1-turn window).
+    if (activeTabName() !== 'dashboard') return;
+    openEventModal();
   }
   $('event-later').addEventListener('click', function () {
     eventModalOpen = false;
@@ -1989,6 +2009,11 @@
     toast('📣 Event parked — respond before you advance, or it resolves as silence.');
   });
   $('ev-pending-badge').addEventListener('click', function (e) {
+    // v0.5.1 freeze fix: swallow the click ONLY when the modal can actually open
+    // (dashboard tab). On other tabs maybeOpenEvent() is gated off, so blocking
+    // the click here made Next Quarter do nothing — the turn never advanced and
+    // the pulsing badge made the game feel frozen.
+    if (activeTabName() !== 'dashboard') return; // let it bubble to btn-next
     e.stopPropagation(); // badge reopens the modal; the button itself advances the turn
     maybeOpenEvent();
   });
