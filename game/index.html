@@ -28,7 +28,7 @@
       <span id="hd-scenario" class="badge bg-stone-600 hidden"></span>
     </div>
     <div class="ml-auto flex items-center gap-2">
-      <button id="btn-next" class="btn-primary">Next Quarter ▶</button>
+      <button id="btn-next" class="btn-primary">Next Quarter ▶<span id="ev-pending-badge" class="hidden ml-1.5 text-[10px] bg-violet-600 text-white rounded-full px-1.5 py-0.5 align-middle"></span></button>
       <button id="btn-new" class="btn-ghost">New Game</button>
     </div>
   </div>
@@ -38,7 +38,7 @@
       <button data-tab="dashboard" class="tab-btn tab-active">Dashboard</button>
       <button data-tab="acts" class="tab-btn">Acts</button>
       <button data-tab="budget" class="tab-btn">Budget</button>
-      <button data-tab="network" class="tab-btn">Network</button>
+      <button data-tab="network" class="tab-btn">Network &amp; Compass</button>
       <button data-tab="party" class="tab-btn">Party</button>
       <button data-tab="report" class="tab-btn">Report</button>
     </div>
@@ -90,6 +90,94 @@
     </div>
   </div>
 
+  <!-- ===================== WORLD EVENT POPUP (v0.5) ===================== -->
+  <div id="event-modal" class="hidden fixed inset-0 z-50 bg-stone-900/70 flex items-center justify-center p-4">
+    <div class="bg-white rounded-xl shadow-2xl max-w-lg w-full p-6" role="dialog" aria-modal="true">
+      <div class="flex items-start justify-between mb-1">
+        <span id="event-kicker" class="text-[11px] font-bold uppercase tracking-widest text-violet-700">🌎 World event</span>
+        <span id="event-urgency" class="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full"></span>
+      </div>
+      <h2 id="event-title" class="text-xl font-bold mb-1"></h2>
+      <p id="event-context" class="text-[13px] text-stone-600 leading-snug mb-2"></p>
+      <div id="event-blocs" class="flex flex-wrap gap-1 mb-3"></div>
+      <div id="event-options" class="border border-stone-200 rounded-lg divide-y divide-stone-200 mb-3"></div>
+      <p class="text-[11px] text-stone-500 mb-3">⏳ Respond before next quarter — silence costs you with the people watching this.</p>
+      <div class="flex items-center justify-between">
+        <button id="event-later" class="btn-ghost border border-stone-300 text-xs">Respond later</button>
+        <span id="event-queue" class="text-[11px] text-stone-400"></span>
+      </div>
+      <div id="event-actual" class="hidden mt-3 pt-3 border-t border-stone-200 text-[11px] text-stone-500 italic"></div>
+    </div>
+  </div>
+
+  <!-- ===================== ACT STUDIO MODAL (v0.5, WS5) ===================== -->
+  <div id="studio-modal" class="hidden fixed inset-0 z-50 bg-stone-900/70 flex items-center justify-center p-4">
+    <div class="bg-white rounded-xl shadow-2xl max-w-3xl w-full p-6 max-h-[90vh] overflow-y-auto" role="dialog" aria-modal="true">
+      <div class="flex items-start justify-between mb-1">
+        <span class="text-[11px] font-bold uppercase tracking-widest text-teal-700">🛠️ Act Studio</span>
+        <button id="studio-close" class="text-stone-400 hover:text-stone-700 text-lg leading-none">✕</button>
+      </div>
+      <h2 class="text-xl font-bold mb-1">Create your own Act <span class="tip-dot cursor-help" data-tip="mech_studio"></span></h2>
+      <p id="studio-step-label" class="text-[11px] text-stone-400 mb-3">Step 1 of 3 — Source</p>
+
+      <!-- step 1: source -->
+      <div id="studio-step-1">
+        <div id="studio-drop" class="border-2 border-dashed border-stone-300 rounded-lg p-5 text-center text-xs text-stone-500 mb-3 cursor-pointer hover:border-teal-600">
+          📄 Drop a <b>.txt / .md / .csv</b> source document here — or click to choose one
+          <input type="file" id="studio-file" accept=".txt,.md,.csv" class="hidden">
+        </div>
+        <textarea id="studio-paste" rows="4" class="w-full text-xs border border-stone-300 rounded-lg p-2 mb-1" placeholder="…or paste source text here (article, report excerpt, bill summary). A keyword heuristic will pre-fill the form — it is NOT an AI analysis; you calibrate every number."></textarea>
+        <div class="flex justify-end mb-4">
+          <button id="studio-analyze" class="btn-ghost border border-stone-300 !text-xs">Analyze text → pre-fill the form</button>
+        </div>
+        <h3 class="card-title-sm mb-2">…or start from a pre-analyzed template</h3>
+        <div id="studio-templates" class="grid md:grid-cols-2 gap-2"></div>
+      </div>
+
+      <!-- step 2: calibrate -->
+      <div id="studio-step-2" class="hidden">
+        <div class="grid md:grid-cols-2 gap-3 mb-2">
+          <div>
+            <label class="text-[11px] font-semibold text-stone-500" for="studio-name">Act name</label>
+            <input id="studio-name" type="text" class="w-full text-xs border border-stone-300 rounded px-2 py-1.5" placeholder="e.g. Data Dividend Act">
+          </div>
+          <div>
+            <label class="text-[11px] font-semibold text-stone-500" for="studio-cat">Category (Acts-rail shelf)</label>
+            <select id="studio-cat" class="w-full text-xs border border-stone-300 rounded px-2 py-1.5 bg-stone-50"></select>
+          </div>
+        </div>
+        <label class="text-[11px] font-semibold text-stone-500" for="studio-desc">Description</label>
+        <textarea id="studio-desc" rows="2" class="w-full text-xs border border-stone-300 rounded-lg p-2 mb-2" placeholder="What does this Act actually do?"></textarea>
+        <p id="studio-note" class="text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded px-2 py-1 mb-2 hidden"></p>
+        <div class="flex items-center gap-2 mb-2">
+          <span class="text-[11px] font-semibold text-stone-500">Preset:</span>
+          <button id="studio-preset-mod" class="btn-ghost border border-stone-300 !text-[11px] !py-0.5 !px-2">Moderate ×0.6</button>
+          <button id="studio-preset-amb" class="btn-ghost border border-stone-300 !text-[11px] !py-0.5 !px-2">Ambitious ×1.2</button>
+          <span class="text-[10px] text-stone-400">(scales every slider; the registered Act always offers BOTH options)</span>
+        </div>
+        <div id="studio-sliders" class="space-y-1 mb-2 max-h-[38vh] overflow-y-auto pr-2"></div>
+        <div id="studio-readout" class="text-[11px] bg-teal-50 border border-teal-200 rounded-lg px-3 py-2 text-teal-900"></div>
+      </div>
+
+      <!-- step 3: enact -->
+      <div id="studio-step-3" class="hidden">
+        <div id="studio-summary" class="text-xs text-stone-700 space-y-2 mb-3"></div>
+        <div class="flex flex-wrap gap-2">
+          <button id="studio-download" class="btn-ghost border border-stone-300 !text-xs">⬇ Download def as JSON</button>
+          <button id="studio-load" class="btn-ghost border border-stone-300 !text-xs">⬆ Load def JSON</button>
+          <input type="file" id="studio-load-file" accept=".json" class="hidden">
+        </div>
+      </div>
+
+      <div class="flex items-center justify-between mt-4 pt-3 border-t border-stone-200">
+        <button id="studio-back" class="btn-ghost border border-stone-300 text-xs hidden">← Back</button>
+        <span class="flex-1"></span>
+        <button id="studio-next" class="btn-primary !text-xs">Next →</button>
+        <button id="studio-register" class="btn-primary !text-xs hidden">🏛️ Register Act</button>
+      </div>
+    </div>
+  </div>
+
   <!-- ===================== DASHBOARD ===================== -->
   <section id="tab-dashboard" class="tab-pane">
     <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-5" id="stat-cards"></div>
@@ -106,6 +194,13 @@
         </table>
       </div>
       <p class="text-[11px] text-stone-400 mt-2">Actual = real US data (FRED / HUD / CDC) for the current simulation year; series end in 2025. In The Realignment, the Actual column tracks the scripted real timeline quarter by quarter.</p>
+    </div>
+
+    <div class="card mb-5" id="market-card">
+      <h2 class="card-title">📈 Wall Street — real companies, real prices <span class="tip-dot" data-tip="mech_market"></span></h2>
+      <p class="text-[11px] text-stone-400 mb-2">Quarter-end closes, Yahoo Finance (split/dividend-adjusted). Read-only texture — the market does not feed back into your economy.</p>
+      <div id="market-rows"></div>
+      <div id="market-strip" class="overflow-hidden"></div>
     </div>
 
     <div class="card mb-5">
@@ -136,6 +231,10 @@
       <p class="text-sm text-stone-600">Acts of Congress. Each is <b>heavy</b>: an upfront PC cost plus per-turn <b>upkeep</b> — if upkeep goes unpaid the Act <span class="text-amber-700 font-semibold">stalls</span> and its effects pause.</p>
       <span class="text-sm font-semibold text-teal-800" id="pol-pc"></span>
     </div>
+    <div class="flex items-center gap-2 mb-3">
+      <button id="btn-studio" class="btn-ghost border border-teal-600 !text-teal-700 font-semibold !text-xs">🛠️ Create your own Act</button>
+      <span class="text-[11px] text-stone-400">Turn source material into a new Act of Congress — priced by the same PC / upkeep / lag balance formula. <span class="tip-dot cursor-help" data-tip="mech_studio"></span></span>
+    </div>
     <div class="mb-6" id="policy-grid"></div>
     <div class="card">
       <h2 class="card-title">National Fabric — already in force <span class="text-[11px] font-normal text-stone-400">(preloaded Acts; read-only context, not player-controlled)</span></h2>
@@ -153,7 +252,8 @@
     <div class="grid lg:grid-cols-3 gap-5">
       <div class="lg:col-span-2 card">
         <h2 class="card-title">Federal Budget — FY2008 baseline outlays, adjustable 0–200%</h2>
-        <p class="text-[11px] text-stone-400 mb-3">Sliders cost 2 PC per 10% move. Categories with sub-departments expand into editable child lines (1 PC per 10%, min 2; ✕ a child = 5 PC and the parent's effects weaken). ✕ on the parent deletes the whole line (10 PC, big backlash). Net Interest is debt-driven and locked. Hover a line for its explainer.</p>
+        <p class="text-[11px] text-stone-400 mb-3">Sliders cost 2 PC per 10% move. Categories with sub-departments expand into editable child lines (1 PC per 10%, min 2; ✕ a child = 5 PC and the parent's effects weaken). ✕ on the parent deletes the whole line (10 PC, big backlash — but much less if an in-force Act already covers that line's function). Net Interest is debt-driven and locked. Hover a line for its explainer.</p>
+        <div id="uncovered-banner" class="hidden mb-3 p-2.5 rounded-lg bg-amber-50 border border-amber-300 text-amber-900 text-[12px]"></div>
         <div id="budget-rows" class="space-y-1.5"></div>
         <div class="mt-4 pt-3 border-t border-stone-200">
           <h3 class="card-title-sm">Add a new federal sector <span class="text-stone-400 font-normal">(one-time 8 PC)</span></h3>
@@ -178,6 +278,42 @@
 
   <!-- ===================== NETWORK ===================== -->
   <section id="tab-network" class="tab-pane hidden">
+    <!-- v0.5 Political Compass suite (reverse-engineered Filteries engine) -->
+    <div class="card mb-5" id="compass-card">
+      <h2 class="card-title">🧭 Political Compass <span class="text-[10px] font-normal text-stone-400">— your governing philosophy, scored on 8 axes (SIM track)</span>
+        <span class="tip-dot" data-tip="mech_compass"></span></h2>
+      <div id="compass-labels" class="flex flex-wrap gap-1.5 mb-4"></div>
+      <div class="grid lg:grid-cols-2 gap-5">
+        <div>
+          <svg id="compass-plot" viewBox="0 0 300 300" class="w-full max-w-[340px] mx-auto"></svg>
+          <p class="text-[10px] text-stone-400 text-center mt-1">x = economic (left ↔ right) · y = authority (libertarian ↑ / authoritarian ↓) · trail = last 12 quarters</p>
+        </div>
+        <div id="compass-bars"></div>
+      </div>
+      <div id="cycle-stage" class="mt-4 pt-3 border-t border-stone-200"></div>
+      <svg id="compass-flow" viewBox="0 0 760 132" class="w-full mt-3"></svg>
+      <p class="text-[10px] text-stone-400 mt-2">Flow: your Acts, budget and sectors → 8 compass axes → 4 government labels; and → the 8 Big-Cycle determinants → cycle stage + sub-cycle gauges. REG/AUT feed governance quality, which steers resource allocation. <span id="compass-caption" class="text-stone-500"></span></p>
+    </div>
+    <div class="card mb-5" id="world-card">
+      <h2 class="card-title">🌍 World Big Cycle — the great powers, 2000–2024</h2>
+      <p class="text-[11px] text-stone-400 mb-2">Composite power score S (mean of the 8 determinants, 0–100) from real-world data. Your simulated America is overlaid in emerald as you play; in The Realignment the dashed grey line is the scripted ACTUAL timeline.</p>
+      <div class="chart-box-lg"><canvas id="ch-world"></canvas></div>
+      <p id="world-sim-note" class="text-[11px] text-stone-400 italic mt-1">Advance a quarter to trace your America onto the world chart.</p>
+      <div id="world-standings" class="flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-stone-600 mt-2"></div>
+      <div class="mt-4">
+        <label class="text-[11px] text-stone-500 mr-2" for="world-radar-nation">Determinants — you vs</label>
+        <select id="world-radar-nation" class="text-[12px] border border-stone-300 rounded px-1.5 py-1 bg-stone-50">
+          <option value="usa">USA</option>
+          <option value="china" selected>China</option>
+          <option value="eu">EU</option>
+          <option value="india">India</option>
+          <option value="russia">Russia</option>
+          <option value="japan">Japan</option>
+        </select>
+        <div class="chart-box-radar mt-2"><canvas id="ch-world-radar"></canvas></div>
+      </div>
+      <p class="text-[10px] text-stone-400 mt-3">Sources: World Bank WDI, IMF COFER (via the World Powers dataset, pulled 2026-11-17). Normalization: fixed anchors per determinant (see MATH_AND_LOGIC.md).</p>
+    </div>
     <div class="card">
       <h2 class="card-title">Causal Network — determinants (inner ring) × metrics (outer ring)</h2>
       <p class="text-[11px] text-stone-400 mb-2">Green = positive influence, red = negative; width & flow speed ∝ strength. Node size scales with live values — watch the debt bubble grow. <b>Hover an Act option or move a budget slider</b> to preview which edges it touches (▲/▼ = predicted direction).</p>
@@ -235,6 +371,10 @@
         </table>
       </div>
     </div>
+    <div class="card mb-5 hidden" id="stmt-card">
+      <h2 class="card-title">Public Statements <span class="text-[10px] font-normal text-stone-400">— your voice on real-world events (v0.5)</span></h2>
+      <div id="stmt-log" class="space-y-1.5 max-h-[16rem] overflow-y-auto pr-2"></div>
+    </div>
     <div class="grid lg:grid-cols-2 gap-5">
       <div class="card">
         <h2 class="card-title">Cause → Effect Log</h2>
@@ -271,7 +411,14 @@
 <script src="js/act_timeline.js"></script>
 <script src="js/data.js"></script>
 <script src="js/scenario_2016.js"></script>
+<script src="js/realworld_events.js"></script>
+<script src="js/scenario_2030.js"></script>
+<script src="js/market_data.js"></script>
+<script src="js/act_studio.js"></script>
+<script src="js/world_powers.js"></script>
 <script src="js/engine.js"></script>
+<script src="js/compass_data.js"></script>
+<script src="js/compass.js"></script>
 <script src="js/ui.js"></script>
 </body>
 </html>
