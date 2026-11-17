@@ -12,6 +12,8 @@
   var BUDGET = window.BUDGET_CATS || [], SECTORS = window.NEW_SECTORS || [];
   var SCENARIOS = window.SCENARIOS || null;
   var ACT_CATEGORIES = window.ACT_CATEGORIES || [];
+  var ACT_BUDGET_LINKS = window.ACT_BUDGET_LINKS || { acts: {} };
+  var ACT_STUDIO = window.ACT_STUDIO || null;   // v0.5 (WS5): Create-your-own-Act studio
   var E = window.ENGINE;
   var st = E.createGame();
   var charts = {};   // Chart.js instances
@@ -26,6 +28,7 @@
   var GLOSSARY = (typeof window.GLOSSARY !== 'undefined' && window.GLOSSARY) || {};
   var SCENARIO_2016 = (typeof window.SCENARIO_2016 !== 'undefined' && window.SCENARIO_2016) || null;
   var ACT_TIMELINES = (typeof window.ACT_TIMELINES !== 'undefined' && window.ACT_TIMELINES) || null;
+  var WORLD = (typeof window.WORLD_POWERS !== 'undefined' && window.WORLD_POWERS) || null; // WS3: World Big Cycle dataset
 
   /* ---- scenario helpers ---- */
   function scenarioDef() {
@@ -169,6 +172,7 @@
     else if (st.dualTrack && st.turn === 0 && evDef && evDef.banner) { ban.textContent = evDef.banner; ban.classList.remove('hidden'); }
     else ban.classList.add('hidden');
     $('btn-next').disabled = st.over;
+    updateEventBadge(); // v0.5: 📣 N events awaiting response
   }
 
   /* ---------------- dashboard ---------------- */
@@ -301,15 +305,18 @@
     POLICIES.forEach(function (d) { byId[d.id] = d; });
     var groups = (ACT_CATEGORIES && ACT_CATEGORIES.length) ? ACT_CATEGORIES : [{ id: 'all', name: 'Acts', color: '#0f766e', acts: POLICIES.map(function (d) { return d.id; }) }];
     groups.forEach(function (cat) {
+      // v0.5 (WS5): custom Acts join the shelf of their chosen category
+      var actIds = cat.acts.slice();
+      POLICIES.forEach(function (d) { if (d.cat === cat.id && actIds.indexOf(d.id) < 0) actIds.push(d.id); });
       var section = el('div', 'polcat mb-5');
       section.id = 'polcat-' + cat.id;
       var head = el('div', 'polcat-head');
       head.innerHTML = '<span class="polcat-bar" style="background:' + esc(cat.color) + '"></span>' +
         '<span class="polcat-name">' + esc(cat.name) + '</span>' +
-        '<span class="polcat-count">' + cat.acts.length + ' Act' + (cat.acts.length > 1 ? 's' : '') + '</span>';
+        '<span class="polcat-count">' + actIds.length + ' Act' + (actIds.length > 1 ? 's' : '') + '</span>';
       section.appendChild(head);
       var inner = el('div', 'grid md:grid-cols-2 xl:grid-cols-3 gap-4');
-      cat.acts.forEach(function (aid) {
+      actIds.forEach(function (aid) {
         var def = byId[aid];
         if (def) inner.appendChild(buildPolicyCard(def, cat.color));
       });
@@ -384,10 +391,22 @@
       var rampInfo = el('p', 'meta');
       rampInfo.id = 'polramp-' + def.id;
       card.appendChild(rampInfo);
+      // v0.5: budget-impact strip (from ACT_BUDGET_LINKS config)
+      var impact = el('p', 'text-[10px] mt-1 hidden');
+      impact.id = 'polimpact-' + def.id;
+      impact.setAttribute('data-tip', 'mech_links');
+      card.appendChild(impact);
       // v0.4: repeal control — strips an in-force Act, effects unwind in reverse
       var rep = el('div', 'mt-1');
       rep.id = 'polrepeal-' + def.id;
       card.appendChild(rep);
+      // v0.5 (WS5): custom Acts carry a delete control
+      if (def.id.indexOf('custom_') === 0) {
+        var delBtn = el('button', 'btn-ghost border border-stone-300 text-stone-500 !text-[11px] !py-1 !px-2 mt-1', '🗑 Delete custom Act');
+        delBtn.id = 'poldel-' + def.id;
+        delBtn.addEventListener('click', function () { deleteCustomAct(def.id); });
+        card.appendChild(delBtn);
+      }
       return card;
     }
   }
@@ -430,14 +449,63 @@
         if (inForce && !rw._built) {
           rw._built = true;
           var b = el('button', 'btn-ghost border border-red-300 text-red-700 !text-[11px] !py-1 !px-2', '🧨 Repeal — strip this Act, effects unwind in reverse');
+          b.setAttribute('data-tip', 'mech_repeal');
           b.addEventListener('click', function () {
             var res = E.repealAct(st, def.id);
             toast(res.msg, !res.ok);
             render();
           });
           rw.appendChild(b);
+          // v0.5: carrying/uncover warning under the repeal button
+          var warn = el('p', 'text-[10px] text-red-600 mt-1 hidden', '');
+          warn.id = 'polwarn-' + def.id;
+          rw.appendChild(warn);
         }
         if (rw._built) rw.style.display = (inForce && !st.over) ? '' : 'none';
+        // v0.5: dynamic warning — covered lines below baseline snap back on repeal
+        var warn = $('polwarn-' + def.id);
+        if (warn) {
+          var carrying = [];
+          if (ACT_BUDGET_LINKS.acts[def.id]) {
+            ACT_BUDGET_LINKS.acts[def.id].links.forEach(function (lk) {
+              if (lk.coeff <= 0 || (lk.option && ps.value !== lk.option)) return;
+              var catId = lk.target.split('/')[0];
+              var line = st.budget;
+              var mult = line.mult[catId] !== undefined ? line.mult[catId] : 1;
+              if (mult < 0.99 && !(line.deleted && line.deleted[catId])) carrying.push(catId);
+              if (line.deleted && line.deleted[catId]) carrying.push(catId);
+            });
+          }
+          carrying = carrying.filter(function (v, i, a) { return a.indexOf(v) === i; });
+          if (inForce && carrying.length && (ps.ramp > 0.5 || ps.stalled)) {
+            var cnames = carrying.map(function (id) {
+              var c0 = BUDGET_CATS.find(function (x) { return x.id === id; });
+              var m0 = st.budget.mult[id] !== undefined ? st.budget.mult[id] : 1;
+              return (c0 ? c0.name : id) + ' (' + Math.round(m0 * 100) + '%)';
+            });
+            warn.textContent = '⚠ Carrying: ' + cnames.join(', ') + ' — repealing uncovers this need over ' + E.linkConsts().snapbackTurns + ' turns.';
+            warn.classList.remove('hidden');
+          } else warn.classList.add('hidden');
+        }
+      }
+      // v0.5: "Budget impact" strip from the links config; rebuild each render
+      // so option-gated chips dim/brighten with the player's current selection
+      var bi = $('polimpact-' + def.id);
+      if (bi) {
+        var cfg = ACT_BUDGET_LINKS.acts[def.id];
+        if (cfg && cfg.links.length) {
+          var sel = (st.policies && st.policies[def.id] !== undefined) ? st.policies[def.id] : (def.def || null);
+          var chips = cfg.links.map(function (lk) {
+            var tgt = lk.target.replace('newsector:', '');
+            var pct = Math.round(lk.coeff * 100);
+            var gatedOff = lk.option && lk.option !== sel;
+            var cls = 'bchip' + (lk.coeff < 0 ? ' neg' : '') + (gatedOff ? ' dim' : '');
+            var opt = lk.option ? '<i>' + esc(lk.option) + ':</i> ' : '';
+            return '<span class="' + cls + '" title="' + esc(lk.rationale || '') + '">' + opt + esc(tgt) + (lk.coeff < 0 ? ' ▲need' : ' ' + pct + '%') + '</span>';
+          });
+          bi.innerHTML = '<span class="text-stone-400">Budget impact:</span> ' + chips.join(' ');
+          bi.classList.remove('hidden');
+        } else bi.classList.add('hidden');
       }
     });
   }
@@ -542,6 +610,26 @@
         });
       })(cat);
       row.appendChild(del);
+      // v0.5: redundancy badge + consolidate button (act↔budget links)
+      var linkWrap = el('div', 'blink hidden');
+      linkWrap.id = 'blinkwrap-' + cat.id;
+      var linkBadge = el('span', 'blink-badge', '');
+      linkBadge.id = 'blink-' + cat.id;
+      linkBadge.setAttribute('data-tip', 'mech_links');
+      var consBtn = el('button', 'bcons hidden', 'Consolidate');
+      consBtn.id = 'bcons-' + cat.id;
+      consBtn.title = 'Cut this line to the level your in-force Act actually covers (discounted PC, reduced backlash)';
+      (function (cat, consBtn) {
+        consBtn.addEventListener('click', function () {
+          var target = E.consolidateTarget(st, cat.id);
+          if (target === null) return;
+          var res = target === 0 ? E.deleteBudgetCat(st, cat.id) : E.applyBudget(st, cat.id, target);
+          toast(res.msg, !res.ok);
+          render();
+        });
+      })(cat, consBtn);
+      linkWrap.appendChild(linkBadge);
+      linkWrap.appendChild(consBtn);
       // v0.4: restore control (appears when the line or a sub-line is deleted)
       var rst = el('button', 'brestore hidden', '⟲');
       rst.title = 'Restore deleted line(s) in this category (5 PC)';
@@ -555,6 +643,9 @@
       })(cat, rst);
       row.appendChild(rst);
       c.appendChild(row);
+      // v0.5: badge strip sits directly under its category row (not above,
+      // where it could be misread as belonging to the previous category)
+      c.appendChild(linkWrap);
       // v0.4: sub-department child rows
       if (cat.sub && cat.sub.length) {
         var subs = el('div', 'bsubs');
@@ -564,6 +655,9 @@
           srow.id = 'bsubrow-' + cat.id + '-' + sd.id;
           var sname = el('span', 'bname', esc(sd.name));
           sname.setAttribute('data-tip', 'budget_sub');
+          var sbadge = el('span', 'blink-badge hidden', '');
+          sbadge.id = 'bsublink-' + cat.id + '-' + sd.id;
+          sname.appendChild(sbadge);
           srow.appendChild(sname);
           var sr = el('input');
           sr.type = 'range'; sr.min = 0; sr.max = 200; sr.step = 10;
@@ -615,6 +709,16 @@
 
   function renderBudget() {
     var bud = E.computeBudget(st, currentActFx(), 0);
+    // v0.5: act↔budget link badges + consolidate + uncovered-need banner
+    var LK = E.computeLinks(st);
+    var KC = E.linkConsts();
+    function badgeText(rec, R, negRec) {
+      if (negRec) return { cls: 'neg', txt: '▲ need raised by ' + negRec.actName };
+      if (!rec || R < KC.badgePartial) return null;
+      var pct = Math.round(R * 100);
+      if (R >= KC.badgeFull) return { cls: 'full', txt: '◈ covered by ' + rec.actName + ' (' + pct + '%)' };
+      return { cls: 'part', txt: '◈ partly covered (' + pct + '%)' };
+    }
     bud.lines.forEach(function (L) {
       var slider = $('bslider-' + L.id);
       var row = $('brow-' + L.id);
@@ -626,6 +730,25 @@
       $('bshare-' + L.id).textContent = f2(L.share) + '%';
       if (row) row.classList.toggle('deleted', !!L.deleted);
       if (!L.locked) slider.disabled = st.over;
+      // v0.5: parent link badge + consolidate button
+      var ll = E.lineLink(st, L.id, LK);
+      var b = badgeText(ll.rec, ll.R, ll.neg);
+      var bwrap = $('blinkwrap-' + L.id);
+      if (bwrap) {
+        var bb = $('blink-' + L.id);
+        bwrap.classList.toggle('hidden', !b);
+        if (b) {
+          bb.textContent = b.txt;
+          bb.className = 'blink-badge ' + b.cls;
+          bb.title = ll.rec && ll.rec.rationale ? ll.rec.rationale : '';
+        }
+        var cons = $('bcons-' + L.id);
+        if (cons) {
+          var target = E.consolidateTarget(st, L.id);
+          cons.classList.toggle('hidden', target === null || L.deleted || L.mult < 0.99 || st.over);
+          if (target !== null) cons.textContent = target === 0 ? 'Consolidate: zero it' : 'Consolidate: ' + Math.round(target * 100) + '%';
+        }
+      }
       // v0.4: sub-department lines + restore control
       var rst = $('brestore-' + L.id);
       if (rst) {
@@ -647,9 +770,39 @@
           if (ssh) ssh.textContent = S.deleted ? '' : f2(S.bn / st.gdp_nominal * 100) + '%';
           var srow = $('bsubrow-' + L.id + '-' + S.id);
           if (srow) srow.classList.toggle('deleted', !!S.deleted);
+          // v0.5: child link badge
+          var sbg = $('bsublink-' + L.id + '-' + S.id);
+          if (sbg) {
+            var crec = LK.pos[L.id + '/' + S.id];
+            var cneg = LK.neg[L.id + '/' + S.id] || LK.neg[L.id];
+            var cb = badgeText(crec, crec ? crec.R : 0, cneg);
+            sbg.classList.toggle('hidden', !cb);
+            if (cb) {
+              sbg.textContent = ' ' + cb.txt;
+              sbg.className = 'blink-badge ' + cb.cls;
+              sbg.title = crec && crec.rationale ? crec.rationale : '';
+            }
+          }
         });
       }
     });
+    // v0.5: UNCOVERED NEED banner (covering act stalled/repealed while line is cut)
+    var ub = $('uncovered-banner');
+    if (ub) {
+      var snaps = Object.keys(st.linkSnap || {});
+      if (snaps.length && !st.over) {
+        var names = snaps.map(function (k) {
+          var catId = k.split('/')[0];
+          var cat = BUDGET_CATS.find(function (c) { return c.id === catId; });
+          var lbl = cat ? cat.name : k;
+          var sb = st.linkSnap[k];
+          return '<b>' + esc(lbl) + '</b> uncovered (' + sb.left + ' turn' + (sb.left > 1 ? 's' : '') + ' of cushion left)';
+        });
+        ub.innerHTML = '⚠ <b>UNCOVERED NEED</b> — ' + names.join('; ') +
+          '. The covering Act is no longer in force and these lines are below baseline; full impact lands when the cushion expires. Emergency restore: ⟲ on the line (5 PC, no backlash).';
+        ub.classList.remove('hidden');
+      } else ub.classList.add('hidden');
+    }
     // sector lines (created at runtime)
     var sc = $('sector-rows');
     if (sc) sc.remove();
@@ -976,6 +1129,29 @@
       nl.appendChild(el('div', 'news-log-item',
         '<span class="lane lane-' + n.lane + '">' + n.lane + '</span><span class="text-stone-400">T' + n.turn + '</span> ' + esc(n.text)));
     });
+
+    // v0.5: Public Statements — the reviewable record of the player's voice
+    var scard = $('stmt-card'), sl = $('stmt-log');
+    if (scard && sl) {
+      if (st.eventLog && st.eventLog.length) {
+        scard.classList.remove('hidden');
+        sl.innerHTML = '';
+        st.eventLog.slice().reverse().forEach(function (e) {
+          var gparts = Object.keys(e.groups || {}).map(function (g) {
+            var v = e.groups[g];
+            return ((VG.labels && VG.labels[g]) || g) + ' ' + (v > 0 ? '+' : '') + v;
+          });
+          var extra = [];
+          if (e.sentiment) extra.push('sentiment ' + (e.sentiment > 0 ? '+' : '') + e.sentiment);
+          if (e.legitimacy) extra.push('legitimacy ' + (e.legitimacy > 0 ? '+' : '') + e.legitimacy);
+          if (extra.length) gparts.push(extra.join(', '));
+          sl.appendChild(el('div', 'news-log-item',
+            '<span class="lane lane-event">' + (e.optionId === 'no_comment' ? 'silent' : 'stmt') + '</span>' +
+            '<span class="text-stone-400">T' + e.turn + '</span> <b>' + esc(e.label) + '</b> — ' +
+            esc(gparts.join(', ') || 'no measurable bloc movement')));
+        });
+      } else scard.classList.add('hidden');
+    }
   }
 
   function download(filename, text, mime) {
@@ -1089,13 +1265,216 @@
     ch.update('none');
   }
 
+  /* ---------------- World Big Cycle (WS3) ---------------- */
+  var WORLD_NATIONS = [
+    { id: 'usa', name: 'USA', color: '#0f766e', width: 3 },
+    { id: 'china', name: 'China', color: '#dc2626', width: 1.5 },
+    { id: 'eu', name: 'EU', color: '#2563eb', width: 1.5 },
+    { id: 'india', name: 'India', color: '#ea580c', width: 1.5 },
+    { id: 'russia', name: 'Russia', color: '#7c3aed', width: 1.5 },
+    { id: 'japan', name: 'Japan', color: '#57534e', width: 1.5 }
+  ];
+  var WORLD_SIM_COLOR = '#059669', WORLD_ACT_COLOR = '#9ca3af', WORLD_TOP_S = 58;
+  /* Fractional clock year of a sim turn. engine.turnToYear is not exported, so
+     mirror the scenario clock: gfc2008 turn 1 = Q1 2008 → 2008 + (t−1)/4;
+     realign2016 turn 0 = Q4 2016 → 2016 + t/4. */
+  function worldSimYear(turn) {
+    if (st.dualTrack) return 2016 + turn / 4;
+    return clockYear() + (turn - 1) / 4;
+  }
+  function detMean8(det) {
+    if (!det) return null;
+    var sum = 0, n = 0;
+    E.DET_IDS.forEach(function (d) {
+      var v = det[d];
+      if (v === null || v === undefined) return;
+      sum += v; n++;
+    });
+    return n ? Math.round(sum / n * 10) / 10 : null;
+  }
+  function worldNationSeries(nid) {
+    var pts = [];
+    var comp = WORLD && WORLD.composite && WORLD.composite[nid];
+    if (!comp) return pts;
+    Object.keys(comp).sort().forEach(function (y) {
+      if (comp[y] !== null && comp[y] !== undefined) pts.push({ x: +y, y: comp[y] });
+    });
+    return pts;
+  }
+  function worldSimSeries() {
+    var pts = [];
+    if (!st.snapshots || !st.snapshots.length) return pts;
+    st.snapshots.forEach(function (s) {
+      var S = detMean8(s.det);
+      if (S === null) return;
+      pts.push({ x: worldSimYear(s.turn), y: S });
+    });
+    return pts;
+  }
+  function worldActualSeries() {
+    // dual-track only: scripted ACTUAL USA from SCENARIO_2016.byTurn, turns 0-36
+    var pts = [];
+    if (!st.dualTrack || !SCENARIO_2016 || !SCENARIO_2016.byTurn) return pts;
+    for (var t = 0; t <= 36; t++) {
+      var rec = SCENARIO_2016.byTurn[String(t)];
+      var S = rec ? detMean8(rec.det) : null;
+      if (S === null) continue;
+      pts.push({ x: 2016 + t / 4, y: S });
+    }
+    return pts;
+  }
+  function worldXMax() {
+    var mx = Math.max(2024, Math.ceil(worldSimYear(Math.max(st.turn, 1))));
+    if (st.dualTrack) mx = Math.max(mx, 2025); // scripted ACTUAL runs turns 0-36 → 2025
+    return mx;
+  }
+
+  function makeWorldLine() {
+    if (!hasCharts || !WORLD || !WORLD.composite) return;
+    var ctx = $('ch-world');
+    if (!ctx) return;
+    var xMax = worldXMax();
+    var datasets = WORLD_NATIONS.map(function (n) {
+      return { label: n.name, data: worldNationSeries(n.id), borderColor: n.color, backgroundColor: n.color, borderWidth: n.width, pointRadius: 0, tension: 0.25, fill: false, spanGaps: true };
+    });
+    datasets.push({ label: 'The Top threshold (58)', data: [{ x: 2000, y: WORLD_TOP_S }, { x: xMax, y: WORLD_TOP_S }], borderColor: '#a8a29e', backgroundColor: '#a8a29e', borderWidth: 1.5, borderDash: [6, 4], pointRadius: 0, tension: 0, fill: false });
+    datasets.push({ label: 'USA — your simulation', data: worldSimSeries(), borderColor: WORLD_SIM_COLOR, backgroundColor: WORLD_SIM_COLOR, borderWidth: 3, pointRadius: 2, tension: 0.25, fill: false, spanGaps: true });
+    if (st.dualTrack) datasets.push({ label: 'USA — ACTUAL scripted', data: worldActualSeries(), borderColor: WORLD_ACT_COLOR, backgroundColor: WORLD_ACT_COLOR, borderWidth: 2, borderDash: [6, 4], pointRadius: 0, tension: 0.25, fill: false, spanGaps: true });
+    charts['ch-world'] = new Chart(ctx, {
+      type: 'line',
+      data: { datasets: datasets },
+      options: {
+        responsive: true, maintainAspectRatio: false, animation: false,
+        interaction: { intersect: false, mode: 'nearest' },
+        scales: {
+          x: {
+            type: 'linear', min: 2000, max: xMax,
+            ticks: { stepSize: 4, font: { size: 9 }, callback: function (v) { return String(v); } },
+            grid: { color: '#f5f5f4' }
+          },
+          y: {
+            min: 0, max: 100,
+            title: { display: true, text: 'Composite S', font: { size: 9 } },
+            ticks: { font: { size: 9 } }, grid: { color: '#f5f5f4' }
+          }
+        },
+        plugins: { legend: { labels: { boxWidth: 10, font: { size: 9 } } } }
+      }
+    });
+  }
+  function updateWorldLine() {
+    var note = $('world-sim-note');
+    var simPts = worldSimSeries();
+    // before the first turn there is no simulation trace — show the placeholder
+    if (note) note.classList.toggle('hidden', simPts.length > 0);
+    var ch = charts['ch-world'];
+    if (!ch) return;
+    // rebuild if the track mode changed (dualTrack toggles the scripted dataset)
+    var wantN = WORLD_NATIONS.length + 2 + (st.dualTrack ? 1 : 0);
+    if (ch.data.datasets.length !== wantN) { ch.destroy(); delete charts['ch-world']; makeWorldLine(); return; }
+    var xMax = worldXMax();
+    ch.options.scales.x.max = xMax;
+    WORLD_NATIONS.forEach(function (n, i) { ch.data.datasets[i].data = worldNationSeries(n.id); });
+    ch.data.datasets[WORLD_NATIONS.length].data = [{ x: 2000, y: WORLD_TOP_S }, { x: xMax, y: WORLD_TOP_S }];
+    ch.data.datasets[WORLD_NATIONS.length + 1].data = simPts;
+    if (st.dualTrack) ch.data.datasets[WORLD_NATIONS.length + 2].data = worldActualSeries();
+    ch.update('none');
+  }
+
+  function worldRadarNation() {
+    var sel = $('world-radar-nation');
+    var nid = sel ? sel.value : 'usa';
+    var years = (WORLD && WORLD.det && WORLD.det[nid]) ? Object.keys(WORLD.det[nid]).sort() : [];
+    if (!years.length) return null;
+    var y = String(st.year);
+    if (!WORLD.det[nid][y]) y = years[years.length - 1]; // year missing -> latest available
+    var name = nid;
+    WORLD_NATIONS.forEach(function (n) { if (n.id === nid) name = n.name; });
+    return { id: nid, name: name, year: +y, det: WORLD.det[nid][y] };
+  }
+  function makeWorldRadar() {
+    if (!hasCharts || !WORLD || !WORLD.det) return;
+    var ctx = $('ch-world-radar');
+    if (!ctx) return;
+    charts['ch-world-radar'] = new Chart(ctx, {
+      type: 'radar',
+      data: {
+        labels: E.DET_IDS.map(function (d) { return DET_LABELS[d]; }),
+        datasets: [
+          { label: 'Your America (now)', data: [], borderColor: SIM_COLOR, backgroundColor: 'rgba(15,118,110,0.15)', borderWidth: 2, pointRadius: 2 },
+          { label: '—', data: [], borderColor: WORLD_ACT_COLOR, backgroundColor: 'rgba(156,163,175,0.15)', borderWidth: 1.5, pointRadius: 2 }
+        ]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false, animation: false,
+        scales: { r: { min: 0, max: 100, ticks: { display: false }, pointLabels: { font: { size: 9 } } } },
+        plugins: { legend: { labels: { boxWidth: 10, font: { size: 9 } } } }
+      }
+    });
+    updateWorldRadar();
+  }
+  function updateWorldRadar() {
+    var ch = charts['ch-world-radar'];
+    if (!ch) return;
+    var nat = worldRadarNation();
+    ch.data.datasets[0].data = E.DET_IDS.map(function (d) { return st.det[d]; });
+    ch.data.datasets[1].data = E.DET_IDS.map(function (d) { return nat && nat.det ? nat.det[d] : null; });
+    ch.data.datasets[1].label = nat ? (nat.name + ' (' + nat.year + ')') : '—';
+    ch.update('none');
+  }
+
+  /* phase chips use the engine's phaseOf() thresholds:
+     The Rise ≥70, The Top ≥58, Early Decline ≥46, Late Decline ≥36, Reset <36 */
+  function phaseChipClass(name) {
+    if (name === 'The Rise') return 'phase-rise';
+    if (name === 'The Top') return 'phase-top';
+    if (name === 'Early Decline') return 'phase-early';
+    if (name === 'Late Decline') return 'phase-late';
+    return 'phase-reset';
+  }
+  function worldStandingHTML(name, color, S) {
+    var ph = E.phaseOf(S);
+    return '<span class="world-standing">' +
+      '<span class="world-dot" style="background:' + color + '"></span>' +
+      '<b>' + esc(name) + '</b>&nbsp;S=' + f1(S) + '&nbsp;—&nbsp;' +
+      '<span class="phase-chip ' + phaseChipClass(ph.name) + '">' + ph.name + '</span></span>';
+  }
+  function renderWorldStandings() {
+    var box = $('world-standings');
+    if (!box) return;
+    if (!WORLD || !WORLD.S_latest) { box.innerHTML = ''; return; }
+    var html = WORLD_NATIONS.map(function (n) {
+      var S = WORLD.S_latest[n.id];
+      return (S === null || S === undefined) ? '' : worldStandingHTML(n.name, n.color, S);
+    }).join('');
+    var simS = detMean8(st.det);
+    if (simS !== null) html += worldStandingHTML('Your America:', WORLD_SIM_COLOR, simS);
+    box.innerHTML = html;
+  }
+
+  function makeWorldCharts() { makeWorldLine(); makeWorldRadar(); }
+  function updateWorldCharts() {
+    if (!WORLD) return;
+    updateWorldLine();
+    updateWorldRadar();
+    renderWorldStandings();
+  }
+  var radarSel = $('world-radar-nation');
+  if (radarSel) radarSel.addEventListener('change', function () { updateWorldRadar(); });
+
   function buildCharts() {
+    // v0.5: destroy existing Chart instances before rebinding canvases
+    // (newGame re-runs buildCharts; Chart.js throws if a canvas is re-used)
+    Object.keys(charts).forEach(function (id) {
+      if (charts[id]) { charts[id].destroy(); delete charts[id]; }
+    });
     var s0 = scenarioStartState();
     makeChart('ch-gdp', simSeries(function (s) { return s.gdp_level; }, s0.gdp_level), actualSeries('gdp_level'));
     makeChart('ch-debt', simSeries(function (s) { return s.debt_gdp; }, s0.debt_gdp), actualSeries('debt_gdp'));
     makeChart('ch-unemp', simSeries(function (s) { return s.unemployment; }, s0.unemployment), actualSeries('unemployment'));
     makeChart('ch-homeless', simSeries(function (s) { return s.homelessness; }, s0.homelessness), actualSeries('homelessness'));
     makePollChart();
+    makeWorldCharts();
   }
   function makePollChart() {
     var player = simSeries(function (s, i) { return st.pollHistory[i + 1] ? st.pollHistory[i + 1].pct : null; }, st.pollHistory[0].pct);
@@ -1161,6 +1540,7 @@
       }
       charts['ch-poll'].update('none');
     }
+    updateWorldCharts();
   }
 
   /* ---------------- overlay (game over) ---------------- */
@@ -1193,10 +1573,269 @@
     renderPolicies();
     renderBudget();
     renderNetwork();
+    renderCompass();      // v0.5: 8-axis compass + labels
+    renderCycleStage();   // v0.5: Big-Cycle stage + sub-cycle gauges
     renderParty();
     renderInfluence();
     renderReport();
+    renderMarket();       // v0.5 (WS7): GLO-BUS-style real market panel
     updateCharts();
+  }
+
+  /* ---------------- market panel (v0.5, WS7) ---------------- */
+  var MD = window.MARKET_DATA || null;
+  var MKT_ALIAS = { FB: 'META' };   // realworld_events uses the pre-2022 ticker
+  function mktEvents() {
+    var RWE = window.REALWORLD_EVENTS || null;
+    if (!RWE || !RWE.scenarios || !RWE.scenarios[st.scenario]) return {};
+    return RWE.scenarios[st.scenario].marketEvents || {};
+  }
+  function mktLatestEvent(tk) {
+    // most recent marketEvent (numeric turn key <= st.turn) matching ticker (alias-aware)
+    var evs = mktEvents(), best = null, bestT = -1;
+    Object.keys(evs).forEach(function (k) {
+      var t = +k;
+      if (isNaN(t) || t > st.turn || t <= bestT) return;
+      (evs[k] || []).forEach(function (ev) {
+        var et = MKT_ALIAS[ev.ticker] || ev.ticker;
+        if (et === tk) { best = ev; bestT = t; }
+      });
+    });
+    return best;
+  }
+  function mktLastPrice(prices, idx) {
+    for (var i = Math.min(idx, prices.length - 1); i >= 0; i--) {
+      if (prices[i] != null) return { p: prices[i], i: i };
+    }
+    return null;
+  }
+  function mktSpark(prices, idx) {
+    var from = Math.max(0, idx - 11), pts = [];
+    for (var i = from; i <= idx && i < prices.length; i++) if (prices[i] != null) pts.push({ i: i, p: prices[i] });
+    if (pts.length < 2) return '';
+    var lo = Infinity, hi = -Infinity;
+    pts.forEach(function (q) { if (q.p < lo) lo = q.p; if (q.p > hi) hi = q.p; });
+    var span = (hi - lo) || 1, n = idx - from || 1;
+    var s = pts.map(function (q) {
+      var x = ((q.i - from) / n * 100).toFixed(1);
+      var y = (22 - (q.p - lo) / span * 20).toFixed(1);
+      return x + ',' + y;
+    }).join(' ');
+    var col = pts[pts.length - 1].p >= pts[0].p ? '#0f766e' : '#dc2626';
+    return '<svg viewBox="0 0 100 24" preserveAspectRatio="none"><polyline fill="none" stroke="' + col + '" stroke-width="1.5" points="' + s + '"/></svg>';
+  }
+  function mktChg(prices, idx) {
+    if (idx <= 0 || prices[idx] == null || prices[idx - 1] == null) return null;
+    return (prices[idx] - prices[idx - 1]) / prices[idx - 1] * 100;
+  }
+  function renderMarket() {
+    var rowsEl = $('market-rows'), stripEl = $('market-strip');
+    if (!rowsEl || !stripEl) return;
+    rowsEl.innerHTML = ''; stripEl.innerHTML = '';
+    var scn = MD && MD.scenarios && MD.scenarios[st.scenario];
+    if (!scn) {
+      rowsEl.appendChild(el('div', 'mkt-row mkt-empty',
+        '<span class="mkt-note">Speculative branch — no real market data. Watch the [BIZ] wire in the news feed.</span>'));
+      return;
+    }
+    var quarters = scn.quarters || [];
+    var idx = Math.max(0, Math.min(st.turn, quarters.length - 1));
+    var chips = [];
+    // headline-only names (no price data in this scenario: BSC, LEH, old GM, FTT…)
+    var seen = {};
+    Object.keys(scn.tickers).forEach(function (k) { seen[k] = true; });
+    var extra = [];
+    var evs = mktEvents();
+    Object.keys(evs).forEach(function (k) {
+      if (isNaN(+k) || +k > st.turn) return;
+      (evs[k] || []).forEach(function (ev) {
+        var et = MKT_ALIAS[ev.ticker] || ev.ticker;
+        if (!seen[et] && extra.indexOf(et) === -1) extra.push(et);
+      });
+    });
+    var keys = Object.keys(scn.tickers).concat(extra);
+    keys.forEach(function (tk) {
+      var info = scn.tickers[tk] || null;
+      var prices = info ? info.prices : [];
+      var ev = mktLatestEvent(tk);
+      var lp = prices.length ? mktLastPrice(prices, idx) : null;
+      if (!lp && !ev) return;   // no prices and no headline: skip entirely
+      var delistedFrom = info ? info.delistedFrom : null;
+      var dlIdx = delistedFrom ? quarters.indexOf(delistedFrom) : -1;
+      var delisted = dlIdx >= 0 && idx >= dlIdx;
+      var chg = delisted ? 0 : (lp ? mktChg(prices, idx) : null);
+      var name = info ? info.name : (ev.company || tk);
+      var sector = info ? info.sector : (ev.sector || '');
+      var priceTxt = lp ? '$' + esc(lp.p.toFixed(2)) : '—';
+      var badge = delisted ? ' <span class="mkt-dl">DELISTED</span>' : '';
+      var chgTxt = chg == null ? '—' : ((chg >= 0 ? '+' : '') + chg.toFixed(1) + '%');
+      var chgCls = chg == null ? '' : (chg > 0.005 ? 'mkt-up' : (chg < -0.005 ? 'mkt-dn' : ''));
+      var head = ev ? (esc(ev.headline.length > 90 ? ev.headline.slice(0, 89) + '…' : ev.headline) +
+        (ev.marketNote ? '<span class="mkt-note">' + esc(ev.marketNote) + '</span>' : '')) : '<span class="mkt-note">—</span>';
+      var row = el('div', 'mkt-row' + (delisted ? ' mkt-delisted' : ''));
+      row.innerHTML =
+        '<span class="mkt-name"><b>' + esc(tk) + '</b> ' + esc(name) + badge +
+          '<small>' + esc(sector) + '</small></span>' +
+        '<span class="mkt-px">' + priceTxt + '</span>' +
+        '<span class="mkt-chg ' + chgCls + '">' + chgTxt + '</span>' +
+        '<span class="mkt-spark">' + (prices.length ? mktSpark(prices, idx) : '') + '</span>' +
+        '<span class="mkt-head">' + head + '</span>';
+      rowsEl.appendChild(row);
+      if (lp && !delisted) chips.push('<span class="mkt-chip">' + esc(tk) + ' <b>' + priceTxt + '</b> <i class="' + chgCls + '">' + chgTxt + '</i></span>');
+    });
+    if (chips.length) {
+      var line = chips.join('');
+      stripEl.innerHTML = '<div class="mkt-strip-track">' + line + line + '</div>';
+    }
+  }
+
+  /* ---------------- political compass suite (v0.5) ---------------- */
+  var CMP_COLORS = { STA: '#0e7490', LFT: '#dc2626', REG: '#d97706', OWN: '#7c3aed', HSP: '#65a30d', AUT: '#be123c', TRD: '#a16207', NTV: '#b91c1c' };
+  var CMP = function () { return window.COMPASS; };
+  function cmpAxesSafe() {
+    if (!CMP()) return null;
+    try { return CMP().compassReport(st); } catch (e) { return null; }
+  }
+  function renderCompass() {
+    var rep = cmpAxesSafe();
+    if (!rep) return;
+    var axes = rep.axes, labels = rep.labels, META = window.COMPASS_META;
+    // 4 label chips
+    var lc = $('compass-labels');
+    lc.innerHTML = '';
+    [['structure', '🏛️ Structure'], ['governing', '⚖️ Governing'], ['economic', '💰 Economic'], ['social', '🌐 Social']].forEach(function (pair) {
+      var chip = el('div', 'cmp-chip');
+      chip.style.borderColor = '#99f6e4'; chip.style.background = '#f0fdfa'; chip.style.color = '#115e59';
+      chip.innerHTML = esc(pair[1]) + '<small>' + esc(labels[pair[0]]) + '</small>';
+      chip.setAttribute('data-tip', 'mech_compass');
+      lc.appendChild(chip);
+    });
+    // 8 axis bars with baseline marker (grid: poles header spans all 3 cols)
+    var bars = $('compass-bars');
+    bars.innerHTML = '';
+    META.axes.forEach(function (a) {
+      var poles = META.poles[a];
+      var v = axes[a];
+      var base = (window.COMPASS_USA_BASELINE[a] !== undefined) ? window.COMPASS_USA_BASELINE[a] : 50;
+      var dv = Math.round((v - base) * 10) / 10;
+      var track = el('div', 'cmp-track');
+      track.appendChild(el('div', 'cmp-mid'));
+      var fill = el('div', 'cmp-fill');
+      fill.style.left = '0'; fill.style.width = v + '%';
+      fill.style.background = CMP_COLORS[a] || '#0f766e';
+      fill.style.opacity = '0.75';
+      track.appendChild(fill);
+      var marker = el('div', 'cmp-marker');
+      marker.style.left = base + '%';
+      marker.style.borderColor = '#a8a29e';
+      marker.title = 'USA baseline ' + base;
+      track.appendChild(marker);
+      var wrap = el('div', 'cmp-bar-row');
+      var head = el('div', 'cmp-bar-poles cmp-span3',
+        '<span>' + esc(poles[0]) + '</span><span class="font-bold">' + a + '</span><span>' + esc(poles[1]) + '</span>');
+      wrap.appendChild(head);
+      wrap.appendChild(el('div', 'text-[9px] font-bold text-stone-500 pt-0.5', a));
+      wrap.appendChild(track);
+      wrap.appendChild(el('div', 'cmp-val', f1(v) + (a !== 'HSP' && Math.abs(dv) >= 0.05 ?
+        ' <span class="' + (dv > 0 ? 'delta-pos' : 'delta-neg') + ' text-[9px]">' + (dv > 0 ? '+' : '') + f1(dv) + '</span>' : '')));
+      bars.appendChild(wrap);
+    });
+    // 2D plot: x = 100−LFT (Left↔Right), y = AUT (Authoritarian↑↔Libertarian↓)
+    var plot = $('compass-plot');
+    if (plot) {
+      var s = '';
+      var px = function (lft) { return 20 + (100 - lft) / 100 * 260; };
+      var py = function (aut) { return 280 - aut / 100 * 260; };
+      s += '<rect x="20" y="20" width="260" height="260" fill="#fafaf9" stroke="#d6d3d1"/>';
+      s += '<line x1="150" y1="20" x2="150" y2="280" stroke="#d6d3d1"/><line x1="20" y1="150" x2="280" y2="150" stroke="#d6d3d1"/>';
+      s += '<text x="272" y="146" font-size="8" fill="#a8a29e" text-anchor="end">Right</text>';
+      s += '<text x="28" y="146" font-size="8" fill="#a8a29e">Left</text>';
+      s += '<text x="154" y="30" font-size="8" fill="#a8a29e">Authoritarian</text>';
+      s += '<text x="154" y="274" font-size="8" fill="#a8a29e">Libertarian</text>';
+      // trail: last 12 quarters (axes are memoryless → recompute per snapshot)
+      var trailPts = [];
+      if (CMP()) {
+        st.snapshots.slice(-12).forEach(function (snap) {
+          try {
+            var fake = { pol: st.pol, budget: st.budget, sectors: st.sectors, scenario: st.scenario,
+              turn: snap.turn, outlays_bn: snap.outlays_bn, gdp_nominal: snap.gdp_nominal };
+            var a2 = CMP().computeAxes(fake).axes;
+            trailPts.push(px(a2.LFT) + ',' + py(a2.AUT));
+          } catch (e) { /* snapshot lacks outlays before first advance */ }
+        });
+      }
+      if (trailPts.length > 1) s += '<polyline points="' + trailPts.join(' ') + '" fill="none" stroke="#99f6e4" stroke-width="1.5"/>';
+      var cx = px(axes.LFT), cy = py(axes.AUT);
+      s += '<circle cx="' + cx + '" cy="' + cy + '" r="6" fill="#0f766e" stroke="#fff" stroke-width="2"><title>LFT ' + f1(axes.LFT) + ' · AUT ' + f1(axes.AUT) + '</title></circle>';
+      // baseline dot (USA archetype 8)
+      s += '<circle cx="' + px(38) + '" cy="' + py(30) + '" r="3.5" fill="none" stroke="#a8a29e" stroke-width="1.5"/>';
+      s += '<text x="' + (px(38) + 6) + '" y="' + (py(30) + 3) + '" font-size="7" fill="#a8a29e">USA baseline</text>';
+      plot.innerHTML = s;
+    }
+    var cap = $('compass-caption');
+    if (cap) cap.textContent = st.dualTrack ? 'Dual-track: the compass reads your SIM America; the scripted ACTUAL timeline has no policy levers.' : '';
+    renderCompassFlow(rep);
+  }
+  function renderCompassFlow(rep) {
+    var flow = $('compass-flow');
+    if (!flow) return;
+    function box(x, w, title, sub, color) {
+      return '<rect x="' + x + '" y="26" width="' + w + '" height="52" rx="8" fill="#fff" stroke="' + color + '" stroke-width="1.5"/>' +
+        '<text x="' + (x + w / 2) + '" y="46" font-size="10" font-weight="700" fill="' + color + '" text-anchor="middle">' + esc(title) + '</text>' +
+        '<text x="' + (x + w / 2) + '" y="62" font-size="8" fill="#78716c" text-anchor="middle">' + esc(sub) + '</text>';
+    }
+    function arrow(x1, x2, y) {
+      return '<line x1="' + x1 + '" y1="' + y + '" x2="' + (x2 - 7) + '" y2="' + y + '" stroke="#a8a29e" stroke-width="1.5"/>' +
+        '<polygon points="' + x2 + ',' + y + ' ' + (x2 - 7) + ',' + (y - 4) + ' ' + (x2 - 7) + ',' + (y + 4) + '" fill="#a8a29e"/>';
+    }
+    var s = '<rect x="0" y="0" width="760" height="132" fill="none"/>';
+    s += box(4, 150, 'Your inputs', '16 Acts · budget · sectors', '#0f766e');
+    s += arrow(158, 196, 52);
+    s += box(200, 130, '8 Compass axes', 'STA LFT REG OWN HSP AUT TRD NTV', '#0e7490');
+    s += arrow(334, 372, 52);
+    s += box(376, 190, '4 Government labels', (rep ? rep.labels.governing : '—') + ' · ' + (rep ? rep.labels.economic : '—'), '#7c3aed');
+    // second row: determinants → cycle stage
+    s += box(200, 130, '8 Determinants', 'education → reserve_fx', '#b45309');
+    s += arrow(334, 372, 112);
+    s += box(376, 190, 'Cycle stage', rep && rep.cycle ? rep.cycle.stage + (rep.cycle.provisional ? ' (provisional)' : '') : '—', '#b45309');
+    // bridges
+    s += '<line x1="265" y1="82" x2="265" y2="102" stroke="#d6d3d1" stroke-width="1.5" stroke-dasharray="3 3"/>' +
+      '<polygon points="265,106 261,99 269,99" fill="#d6d3d1"/>' +
+      '<line x1="76" y1="82" x2="76" y2="112" stroke="#d6d3d1" stroke-width="1.5" stroke-dasharray="3 3"/>' +
+      '<line x1="76" y1="112" x2="196" y2="112" stroke="#d6d3d1" stroke-width="1.5" stroke-dasharray="3 3"/>' +
+      '<polygon points="198,112 191,108 191,116" fill="#d6d3d1"/>' +
+      '<text x="82" y="96" font-size="7" fill="#a8a29e">REG/AUT → governance → resource allocation</text>';
+    flow.innerHTML = s;
+  }
+  function renderCycleStage() {
+    if (!CMP()) return;
+    var c;
+    try { c = CMP().classifyCycleStage(st); } catch (e) { return; }
+    var box = $('cycle-stage');
+    if (!box) return;
+    var colors = { 'New Order': '#7c3aed', 'The Rise': '#059669', 'The Top': '#0f766e', 'The Decline': '#b45309' };
+    var trendTxt = c.trend === null ? 'trend n/a (<8 turns)' :
+      'trend ' + (c.trend > 0 ? '+' : '') + f2(c.trend) + '/yr over ' + c.trendWindowTurns + 'q';
+    var html = '<div class="flex flex-wrap items-center gap-2 mb-2">' +
+      '<span class="stage-chip" style="background:' + (colors[c.stage] || '#57534e') + '22;color:' + (colors[c.stage] || '#57534e') + ';border:1px solid ' + (colors[c.stage] || '#57534e') + '55">Big-Cycle stage: ' + esc(c.stage) + '</span>' +
+      (c.provisional ? '<span class="text-[10px] text-stone-400">provisional (level-only, &lt;12 turns)</span>' : '') +
+      '<span class="text-[10px] text-stone-500">power index ' + f1(c.powerIndex) + ' · ' + esc(trendTxt) + '</span></div>';
+    html += '<div class="grid grid-cols-3 gap-3 mb-2">';
+    [['Debt cycle', c.subCycles.debt, 'Healthy → Unhealthy'],
+     ['Internal order', c.subCycles.internal, 'Order → Disorder'],
+     ['External order', c.subCycles.external, 'Peace → War*']].forEach(function (g) {
+      var pct = Math.max(0, Math.min(100, g[1]));
+      var col = pct >= 60 ? '#dc2626' : pct >= 35 ? '#d97706' : '#059669';
+      html += '<div><div class="flex justify-between text-[10px] text-stone-500"><span>' + g[0] + '</span><span class="font-bold" style="color:' + col + '">' + f1(g[1]) + '</span></div>' +
+        '<div class="gauge-track"><div class="gauge-fill" style="width:' + pct + '%;background:' + col + '"></div></div>' +
+        '<div class="text-[8px] text-stone-400">' + g[2] + '</div></div>';
+    });
+    html += '</div>';
+    if (c.markers.length) {
+      html += '<div class="flex flex-wrap gap-1 items-center"><span class="text-[10px] text-stone-400 mr-1">Dalio markers lit:</span>' +
+        c.markers.map(function (m) { return '<span class="marker-chip">' + m + '</span>'; }).join('') + '</div>';
+    }
+    box.innerHTML = html;
   }
 
   /* ---- scenario picker (v0.4) ---- */
@@ -1229,6 +1868,8 @@
     st = E.createGame(scenarioId);
     previewFx = null;
     $('overlay').classList.add('hidden');
+    eventModalOpen = false;              // v0.5: reset event popup state
+    $('event-modal').classList.add('hidden');
     buildPolicyCards();
     buildBudgetRows();
     renderPreloaded();
@@ -1237,6 +1878,8 @@
     render();
     if (scenarioId === 'realign2016') {
       toast('The Realignment — Q4 2016. A new party with 5 House seats, 1 Senate seat, 3 governors and $300M. SIM shows what a mandate would do; ACTUAL nudges run underneath.');
+    } else if (scenarioId === 'dbe2030') {
+      toast('Dimensions Beyond Energy — Q1 2030. Net-electric fusion has been announced. Your party holds the presidency: manage the transition from scarcity to abundance.');
     } else {
       toast('New game — your party takes office in Q1 2008, amid the Global Financial Crisis.');
     }
@@ -1244,9 +1887,12 @@
 
   $('btn-next').addEventListener('click', function () {
     if (st.over) return;
+    var hadPending = (st.pendingEvents || []).length;
     E.advanceTurn(st);
     render();
-    if (st.over) showOverlay();
+    if (st.over) { showOverlay(); return; }
+    // v0.5: events the player let lapse resolve as "no comment" inside advanceTurn
+    if (hadPending && !(st.pendingEvents || []).length) toast('📣 No comment — the silence is noted.', true);
     else if (st.elections.length && st.elections[st.elections.length - 1].turn === st.turn) {
       var e = st.elections[st.elections.length - 1];
       toast('🗳️ ' + e.year + ' presidential election WON with ' + f1(e.pct) + '% weighted approval! +30 PC mandate.');
@@ -1254,10 +1900,406 @@
       var m = st.midterms[st.midterms.length - 1];
       toast('🗳️ Midterms ' + m.year + ': House ' + (m.dHouse >= 0 ? '+' : '') + m.dHouse + ', Senate ' + (m.dSenate >= 0 ? '+' : '') + m.dSenate + '.');
     }
+    // v0.5: world-event popups open after election/midterm toasts (§3.6 ordering)
+    maybeOpenEvent();
   });
   $('btn-new').addEventListener('click', function () { openScenarioPicker(true); });
 
+  /* ---------------- world-event popup (v0.5) ---------------- */
+  var eventModalOpen = false;
+  function updateEventBadge() {
+    var b = $('ev-pending-badge');
+    if (!b) return;
+    var n = (st.pendingEvents || []).length;
+    if (n > 0 && !st.over && !eventModalOpen) {
+      b.textContent = '📣 ' + n + ' event' + (n > 1 ? 's' : '') + ' awaiting response';
+      b.classList.remove('hidden');
+    } else b.classList.add('hidden');
+  }
+  function openEventModal() {
+    if (!st.pendingEvents || !st.pendingEvents.length || st.over) return;
+    var ev = st.pendingEvents[0];
+    var cfg = E.findEventConfig(st, ev.id);
+    if (!cfg) { st.pendingEvents.shift(); updateEventBadge(); return; }
+    var kick = '🌎 World event — ' + (cfg.quarterLabel || ('Q' + st.quarter + ' ' + st.year));
+    if (cfg.kind === 'act_link') {
+      var actName = null;
+      if (cfg.actId) {
+        var a1 = (window.SCENARIO_2016 && SCENARIO_2016.acts && SCENARIO_2016.acts[cfg.actId]) ? SCENARIO_2016.acts[cfg.actId].name : null;
+        if (Array.isArray(cfg.actId)) a1 = null; // multi-act events: generic line
+        actName = a1;
+      }
+      kick += actName ? ' · 🏛️ alongside the ' + actName : ' · 🏛️ alongside an era-defining law';
+    }
+    $('event-kicker').textContent = kick;
+    var urg = $('event-urgency');
+    if (cfg.tier === 'major') {
+      urg.textContent = '‼ Major';
+      urg.className = 'text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ev-major';
+    } else {
+      urg.textContent = 'Statement';
+      urg.className = 'text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ev-std';
+    }
+    $('event-title').textContent = cfg.title;
+    $('event-context').textContent = cfg.context || cfg.headline || '';
+    var blocs = $('event-blocs');
+    blocs.innerHTML = '';
+    (cfg.blocs || []).forEach(function (g) {
+      blocs.appendChild(el('span', 'ev-bloc', (VG.labels && VG.labels[g]) || g));
+    });
+    var box = $('event-options');
+    box.innerHTML = '';
+    cfg.options.forEach(function (opt) {
+      var btn = el('button', 'ev-opt w-full text-left p-2.5 transition-colors');
+      var pcTag = opt.pc ? ' <span class="text-[10px] font-bold text-violet-700">(' + opt.pc + ' PC)</span>' : '';
+      var q = opt.text || '';
+      var quoted = /^["“‘\']/.test(q) ? esc(q) : '&ldquo;' + esc(q) + '&rdquo;'; // config text may already carry quotes
+      btn.innerHTML = '<div class="text-[13px] font-semibold text-stone-800">' + esc(opt.label) + pcTag + '</div>' +
+        (opt.text ? '<div class="text-[12px] text-stone-500 italic mt-0.5">' + quoted + '</div>' : '') +
+        (opt.preview ? '<div class="text-[11px] text-violet-700/80 mt-0.5">' + esc(opt.preview) + '</div>' : '');
+      btn.addEventListener('click', function () {
+        var res = E.respondToEvent(st, ev.id, opt.id);
+        toast(res.msg, !res.ok);
+        if (res.ok) {
+          eventModalOpen = false;
+          $('event-modal').classList.add('hidden');
+          render();
+          maybeOpenEvent(); // a 2-event turn opens the second immediately
+        }
+      });
+      box.appendChild(btn);
+    });
+    var act = $('event-actual');
+    if (cfg.actualReaction) { act.textContent = cfg.actualReaction; act.classList.remove('hidden'); }
+    else act.classList.add('hidden');
+    $('event-queue').textContent = st.pendingEvents.length > 1 ? ('1 of ' + st.pendingEvents.length) : '';
+    $('event-modal').classList.remove('hidden');
+    eventModalOpen = true;
+    updateEventBadge();
+  }
+  function maybeOpenEvent() {
+    updateEventBadge();
+    if (eventModalOpen) return;
+    if (st.pendingEvents && st.pendingEvents.length && !st.over) openEventModal();
+  }
+  $('event-later').addEventListener('click', function () {
+    eventModalOpen = false;
+    $('event-modal').classList.add('hidden');
+    updateEventBadge();
+    toast('📣 Event parked — respond before you advance, or it resolves as silence.');
+  });
+  $('ev-pending-badge').addEventListener('click', function (e) {
+    e.stopPropagation(); // badge reopens the modal; the button itself advances the turn
+    maybeOpenEvent();
+  });
+
+  /* ---------------- v0.5 (WS5): Create-your-own-Act studio ---------------- */
+  var STUDIO = ACT_STUDIO;
+  var studioBuilt = false, studioStep = 1, studioSourceNote = '';
+  var studioVals = { demand: 0, outlay: 0, odPct: 0, homelessPct: 0, incarcPct: 0, det: {}, groups: {} };
+  var STUDIO_BASE_DIMS = [
+    { key: 'demand', label: 'Demand stimulus (pp growth/turn)', min: -2, max: 2, step: 0.1 },
+    { key: 'outlay', label: 'Outlays (% of GDP)', min: 0, max: 4, step: 0.1 },
+    { key: 'odPct', label: 'Overdose deaths (%/turn)', min: -2, max: 2, step: 0.1 },
+    { key: 'homelessPct', label: 'Homelessness (%/turn)', min: -2, max: 2, step: 0.1 },
+    { key: 'incarcPct', label: 'Incarceration (%/turn)', min: -2, max: 2, step: 0.1 }
+  ];
+
+  /* mirror createGame's pol-init shape so a mid-game registration is live immediately */
+  function customPolInit(def) {
+    return { value: def.def, from: def.def, ramp: 1, lag: def.lag, upkeepLeft: 0, upkeepPer: 0, stalled: false };
+  }
+  function restoreCustomActs() {
+    if (!STUDIO) return;
+    STUDIO.restoreSaved().forEach(function (def) {
+      if (!st.pol[def.id]) st.pol[def.id] = customPolInit(def);
+    });
+  }
+  function catLabel(id) {
+    for (var i = 0; i < ACT_CATEGORIES.length; i++) if (ACT_CATEGORIES[i].id === id) return ACT_CATEGORIES[i].name;
+    return id;
+  }
+  function clampNum(x, lo, hi) { return Math.max(lo, Math.min(hi, x)); }
+
+  function collectBase() {
+    return {
+      demand: studioVals.demand, outlay: studioVals.outlay, odPct: studioVals.odPct,
+      homelessPct: studioVals.homelessPct, incarcPct: studioVals.incarcPct,
+      det: Object.assign({}, studioVals.det), groups: Object.assign({}, studioVals.groups)
+    };
+  }
+  function collectForm() {
+    return {
+      name: $('studio-name').value,
+      cat: $('studio-cat').value,
+      desc: $('studio-desc').value,
+      sourceNote: studioSourceNote || undefined,
+      demand: studioVals.demand, outlay: studioVals.outlay,
+      odPct: studioVals.odPct, homelessPct: studioVals.homelessPct, incarcPct: studioVals.incarcPct,
+      det: Object.assign({}, studioVals.det), groups: Object.assign({}, studioVals.groups)
+    };
+  }
+  function updateStudioReadout() {
+    if (!STUDIO) return;
+    var mod = STUDIO.scaleSpec(collectBase(), STUDIO.SCALE_MOD);
+    var amb = STUDIO.scaleSpec(collectBase(), STUDIO.SCALE_AMB);
+    var lag = clampNum(Math.round(2 + amb.weight / 3), 2, 8);
+    var bn = (amb.fx.outlay || 0) / 100 * st.gdp_nominal;
+    $('studio-readout').innerHTML =
+      '⚖️ <b>Balance (live)</b> — Moderate: <b>' + mod.pc + ' PC</b> + upkeep ' + mod.upkeep.perTurn + '/turn × ' + mod.upkeep.turns +
+      ' · Ambitious: <b>' + amb.pc + ' PC</b> + upkeep ' + amb.upkeep.perTurn + '/turn × ' + amb.upkeep.turns +
+      ' · phase-in lag <b>' + lag + ' turns</b><br>💰 Budget cost: up to +' + (amb.fx.outlay || 0) +
+      '% of GDP ≈ ' + money(bn) + '/yr outlays (ambitious) · formula in MATH_AND_LOGIC.md → Custom Act studio';
+  }
+
+  function syncOneSlider(id, v) {
+    var inp = $(id);
+    if (!inp) return;
+    inp.value = v;
+    var lab = inp.nextElementSibling;
+    if (lab) lab.textContent = (Number(inp.step) >= 1 ? String(Math.round(v)) : String(Math.round(v * 100) / 100));
+  }
+  function syncSliders() {
+    STUDIO_BASE_DIMS.forEach(function (d) { syncOneSlider('studio-sl-' + d.key, studioVals[d.key]); });
+    E.DET_IDS.forEach(function (d) { syncOneSlider('studio-sl-det-' + d, studioVals.det[d] || 0); });
+    E.GROUP_IDS.forEach(function (g) { syncOneSlider('studio-sl-grp-' + g, studioVals.groups[g] || 0); });
+  }
+  function setStudioVals(base) {
+    studioVals = { demand: 0, outlay: 0, odPct: 0, homelessPct: 0, incarcPct: 0, det: {}, groups: {} };
+    ['demand', 'outlay', 'odPct', 'homelessPct', 'incarcPct'].forEach(function (k) { studioVals[k] = Number(base[k]) || 0; });
+    Object.keys(base.det || {}).forEach(function (d) { studioVals.det[d] = Number(base.det[d]) || 0; });
+    Object.keys(base.groups || {}).forEach(function (g) { studioVals.groups[g] = Math.round(Number(base.groups[g]) || 0); });
+    syncSliders();
+    updateStudioReadout();
+  }
+  function scaleStudioVals(s) {
+    var caps = STUDIO.CAPS;
+    studioVals.demand = clampNum(studioVals.demand * s, -caps.demand, caps.demand);
+    studioVals.outlay = clampNum(studioVals.outlay * s, 0, caps.outlay);
+    ['odPct', 'homelessPct', 'incarcPct'].forEach(function (k) { studioVals[k] = clampNum(studioVals[k] * s, -caps.pct, caps.pct); });
+    E.DET_IDS.forEach(function (d) { if (studioVals.det[d]) studioVals.det[d] = clampNum(studioVals.det[d] * s, -caps.det, caps.det); });
+    E.GROUP_IDS.forEach(function (g) { if (studioVals.groups[g]) studioVals.groups[g] = clampNum(Math.round(studioVals.groups[g] * s), -caps.group, caps.group); });
+    syncSliders();
+    updateStudioReadout();
+  }
+  function studioNote(txt) {
+    studioSourceNote = txt || '';
+    var n = $('studio-note');
+    if (txt) { n.textContent = '⚠ ' + txt; n.classList.remove('hidden'); }
+    else n.classList.add('hidden');
+  }
+  function fillFromTemplate(tpl) {
+    $('studio-name').value = tpl.name;
+    $('studio-cat').value = tpl.cat;
+    $('studio-desc').value = tpl.desc;
+    studioNote(tpl.sourceNote || '');
+    setStudioVals(tpl.studioBase || {});
+  }
+  function fillFromAnalysis(a) {
+    $('studio-name').value = a.title;
+    $('studio-cat').value = a.cat;
+    if (!$('studio-desc').value.trim()) $('studio-desc').value = 'A player-authored Act drafted from source material in the Act Studio.';
+    studioNote(a.note);
+    setStudioVals({ demand: a.fx.demand, outlay: a.fx.outlay, odPct: a.fx.odPct, homelessPct: a.fx.homelessPct, incarcPct: a.fx.incarcPct, det: a.fx.det, groups: a.groups });
+  }
+
+  function studioGoto(n) {
+    studioStep = n;
+    [1, 2, 3].forEach(function (i) { $('studio-step-' + i).classList.toggle('hidden', i !== n); });
+    $('studio-step-label').textContent = 'Step ' + n + ' of 3 — ' + ['Source', 'Calibrate', 'Enact'][n - 1];
+    $('studio-back').classList.toggle('hidden', n === 1);
+    $('studio-next').classList.toggle('hidden', n === 3);
+    $('studio-register').classList.toggle('hidden', n !== 3);
+    if (n === 2) updateStudioReadout();
+    if (n === 3) buildStudioSummary();
+  }
+  function openStudio() {
+    if (!STUDIO) { toast('Act Studio failed to load.', true); return; }
+    studioGoto(1);
+    $('studio-modal').classList.remove('hidden');
+  }
+  function buildStudioSummary() {
+    var box = $('studio-summary');
+    box.innerHTML = '';
+    var res = STUDIO.buildDef(collectForm());
+    if (!res.ok) { box.appendChild(el('p', 'text-red-700', esc(res.msg))); return; }
+    var def = res.def;
+    box.appendChild(el('p', null, '<b>' + esc(def.name) + '</b> · shelf: ' + esc(catLabel(def.cat)) + ' · id <code>' + esc(def.id) + '</code> · phase-in lag ' + def.lag + ' turns'));
+    box.appendChild(el('p', 'text-stone-500', esc(def.desc)));
+    def.options.forEach(function (o) {
+      if (o.id === 'off') return;
+      var f = o.fx || {}, bits = [];
+      if (f.demand) bits.push('demand ' + (f.demand > 0 ? '+' : '') + f.demand);
+      if (f.outlay) bits.push('outlay +' + f.outlay + '% GDP');
+      if (f.det) Object.keys(f.det).forEach(function (d) { bits.push(d + ' ' + (f.det[d] > 0 ? '+' : '') + f.det[d]); });
+      ['odPct', 'homelessPct', 'incarcPct'].forEach(function (k) { if (f[k]) bits.push(k + ' ' + (f[k] > 0 ? '+' : '') + f[k]); });
+      Object.keys(o.groups || {}).forEach(function (g) { bits.push(((VG.labels && VG.labels[g]) || g) + ' ' + (o.groups[g] > 0 ? '+' : '') + o.groups[g]); });
+      box.appendChild(el('p', null, '<b>' + esc(o.label) + '</b> — ' + o.pc + ' PC, upkeep ' + o.upkeep.perTurn + '/turn × ' + o.upkeep.turns +
+        (bits.length ? '<br><span class="text-stone-500">' + esc(bits.join(' · ')) + '</span>' : '')));
+    });
+    if (def.sourceNote) box.appendChild(el('p', 'text-amber-700 italic', '⚠ ' + esc(def.sourceNote)));
+    box.appendChild(el('p', 'text-stone-400', 'Registering adds the Act to the Acts rail immediately (and to every future New Game) and saves it in this browser.'));
+  }
+
+  function studioRegister() {
+    if (!STUDIO) return;
+    if (!st || st.over) { toast('No active game — start a New Game before registering an Act.', true); return; }
+    var res = STUDIO.buildDef(collectForm());
+    if (!res.ok) { toast(res.msg, true); return; }
+    var er = E.registerCustomAct(res.def);
+    if (!er.ok) { toast(er.msg, true); return; }
+    st.pol[res.def.id] = customPolInit(res.def);   // live in the CURRENT game too
+    STUDIO.saveDef(res.def);
+    buildPolicyCards();
+    render();
+    $('studio-modal').classList.add('hidden');
+    toast('🏛️ ' + res.def.name + ' registered — see the ' + catLabel(res.def.cat) + ' shelf below.');
+  }
+  function studioDownload() {
+    var res = STUDIO.buildDef(collectForm());
+    if (!res.ok) { toast(res.msg, true); return; }
+    download(res.def.id + '.act.json', JSON.stringify(res.def, null, 1), 'application/json');
+  }
+  function loadDefIntoForm(obj) {
+    if (!obj || typeof obj !== 'object') throw new Error('not an Act JSON object');
+    var base = obj.studioBase || null;
+    if (!base && obj.options && obj.options.length) {
+      var o = obj.options[obj.options.length - 1]; // ambitious option
+      var f = o.fx || {}, s = 1 / STUDIO.SCALE_AMB;
+      base = { demand: 0, outlay: 0, odPct: 0, homelessPct: 0, incarcPct: 0, det: {}, groups: {} };
+      ['demand', 'outlay', 'odPct', 'homelessPct', 'incarcPct'].forEach(function (k) { if (f[k]) base[k] = f[k] * s; });
+      if (f.det) Object.keys(f.det).forEach(function (d) { base.det[d] = f.det[d] * s; });
+      if (o.groups) Object.keys(o.groups).forEach(function (g) { base.groups[g] = o.groups[g] * s; });
+    }
+    if (!base && (obj.fx || obj.groups || obj.det)) {
+      base = Object.assign({ demand: 0, outlay: 0, odPct: 0, homelessPct: 0, incarcPct: 0 }, obj.fx || obj);
+      base.det = Object.assign({}, (obj.fx && obj.fx.det) || obj.det || {});
+      base.groups = Object.assign({}, obj.groups || {});
+    }
+    if (!base) throw new Error('no effect data found in this JSON');
+    $('studio-name').value = String(obj.name || '');
+    if (obj.cat) $('studio-cat').value = obj.cat;
+    $('studio-desc').value = String(obj.desc || '');
+    studioNote(obj.sourceNote || 'Loaded from a shared def JSON — verify every number before registering.');
+    setStudioVals(base);
+    studioGoto(2);
+  }
+
+  function deleteCustomAct(id) {
+    var def = null;
+    POLICIES.forEach(function (d) { if (d.id === id) def = d; });
+    if (!def) return;
+    var ps = st.pol[id];
+    if (ps && ps.value !== def.def) { toast('Cannot delete mid-game: ' + def.name + ' is in force. Repeal it first (or delete after a New Game).', true); return; }
+    if (!window.confirm('Delete "' + def.name + '"? It leaves the Acts rail and this browser\'s saved custom Acts.')) return;
+    E.unregisterCustomAct(id);
+    if (STUDIO) STUDIO.removeSaved(id);
+    delete st.pol[id];
+    buildPolicyCards();
+    render();
+    toast('🗑 ' + def.name + ' deleted.');
+  }
+
+  function buildStudio() {
+    if (studioBuilt || !$('studio-modal')) return;
+    studioBuilt = true;
+    if (!STUDIO) { var bs = $('btn-studio'); if (bs) bs.disabled = true; return; }
+    var catSel = $('studio-cat');
+    ACT_CATEGORIES.forEach(function (c) {
+      var o = el('option', null, esc(c.name));
+      o.value = c.id;
+      catSel.appendChild(o);
+    });
+    var tc = $('studio-templates');
+    STUDIO.TEMPLATES.forEach(function (tpl) {
+      var b = el('button', 'text-left border border-stone-200 rounded-lg p-2.5 hover:border-teal-600 hover:bg-teal-50 transition-colors');
+      b.innerHTML = '<div class="text-xs font-bold text-stone-800">' + esc(tpl.name) + '</div>' +
+        '<div class="text-[10px] text-stone-400 mb-1">' + esc(catLabel(tpl.cat)) + ' · Moderate ' + tpl.options[1].pc + ' PC / Ambitious ' + tpl.options[2].pc + ' PC</div>' +
+        '<p class="text-[11px] text-stone-500 leading-snug">' + esc(tpl.desc) + '</p>' +
+        '<p class="text-[10px] text-amber-700 italic mt-1">' + esc(tpl.sourceNote) + '</p>';
+      b.addEventListener('click', function () { fillFromTemplate(tpl); studioGoto(2); });
+      tc.appendChild(b);
+    });
+    var sl = $('studio-sliders');
+    function sliderRow(label, min, max, step, key, bucket) {
+      var row = el('div', 'flex items-center gap-2');
+      row.appendChild(el('span', 'w-44 shrink-0 text-[11px] text-stone-500', esc(label)));
+      var inp = el('input');
+      inp.type = 'range'; inp.min = min; inp.max = max; inp.step = step; inp.value = 0;
+      inp.className = 'flex-1';
+      inp.id = 'studio-sl-' + (bucket ? bucket + '-' : '') + key;
+      var val = el('span', 'w-12 text-right text-[11px] font-semibold text-teal-800', '0');
+      inp.addEventListener('input', function () {
+        var v = parseFloat(inp.value);
+        if (bucket) studioVals[bucket][key] = v; else studioVals[key] = v;
+        val.textContent = (step >= 1 ? String(Math.round(v)) : String(v));
+        updateStudioReadout();
+      });
+      row.appendChild(inp);
+      row.appendChild(val);
+      sl.appendChild(row);
+    }
+    STUDIO_BASE_DIMS.forEach(function (d) { sliderRow(d.label, d.min, d.max, d.step, d.key, null); });
+    sl.appendChild(el('p', 'text-[10px] font-bold uppercase tracking-wide text-stone-400 pt-1', 'Big-Cycle determinants (per turn, ±1.0 cap)'));
+    E.DET_IDS.forEach(function (d) { sliderRow(DET_LABELS[d], -1, 1, 0.05, d, 'det'); });
+    sl.appendChild(el('p', 'text-[10px] font-bold uppercase tracking-wide text-stone-400 pt-1', 'Voter groups (one-time approval shift, ±10 cap)'));
+    E.GROUP_IDS.forEach(function (g) { sliderRow((VG.labels && VG.labels[g]) || g, -10, 10, 1, g, 'grp'); });
+
+    $('btn-studio').addEventListener('click', openStudio);
+    $('studio-close').addEventListener('click', function () { $('studio-modal').classList.add('hidden'); });
+    $('studio-modal').addEventListener('click', function (ev) { if (ev.target === $('studio-modal')) $('studio-modal').classList.add('hidden'); });
+    $('studio-back').addEventListener('click', function () { studioGoto(Math.max(1, studioStep - 1)); });
+    $('studio-next').addEventListener('click', function () {
+      if (studioStep === 2 && !$('studio-name').value.trim()) { toast('Give your Act a name first.', true); return; }
+      studioGoto(Math.min(3, studioStep + 1));
+    });
+    $('studio-register').addEventListener('click', studioRegister);
+    $('studio-download').addEventListener('click', studioDownload);
+    $('studio-preset-mod').addEventListener('click', function () { scaleStudioVals(STUDIO.SCALE_MOD); });
+    $('studio-preset-amb').addEventListener('click', function () { scaleStudioVals(STUDIO.SCALE_AMB); });
+    $('studio-analyze').addEventListener('click', analyzeStudioText);
+    var drop = $('studio-drop'), fileIn = $('studio-file');
+    drop.addEventListener('click', function () { fileIn.click(); });
+    drop.addEventListener('dragover', function (ev) { ev.preventDefault(); drop.classList.add('border-teal-600'); });
+    drop.addEventListener('dragleave', function () { drop.classList.remove('border-teal-600'); });
+    drop.addEventListener('drop', function (ev) {
+      ev.preventDefault();
+      drop.classList.remove('border-teal-600');
+      var f = ev.dataTransfer.files && ev.dataTransfer.files[0];
+      if (f) readStudioFile(f);
+    });
+    fileIn.addEventListener('change', function () { if (fileIn.files[0]) readStudioFile(fileIn.files[0]); });
+    $('studio-load').addEventListener('click', function () { $('studio-load-file').click(); });
+    $('studio-load-file').addEventListener('change', function () {
+      var f = $('studio-load-file').files[0];
+      if (!f) return;
+      var rd = new FileReader();
+      rd.onload = function () {
+        try { loadDefIntoForm(JSON.parse(String(rd.result || ''))); }
+        catch (e) { toast('Could not load that def JSON: ' + e.message, true); }
+      };
+      rd.readAsText(f);
+    });
+  }
+  function readStudioFile(f) {
+    if (!/\.(txt|md|csv)$/i.test(f.name)) { toast('Only .txt, .md or .csv files.', true); return; }
+    var rd = new FileReader();
+    rd.onload = function () {
+      $('studio-paste').value = String(rd.result || '').slice(0, 20000);
+      analyzeStudioText();
+    };
+    rd.readAsText(f);
+  }
+  function analyzeStudioText() {
+    var txt = $('studio-paste').value;
+    if (!txt.trim()) { toast('Paste or drop some source text first.', true); return; }
+    fillFromAnalysis(STUDIO.analyzeText(txt));
+    studioGoto(2);
+  }
+
   /* ---------------- init ---------------- */
+  restoreCustomActs();   // v0.5 (WS5): re-register saved custom Acts, patch current st.pol
+  buildStudio();         // v0.5 (WS5): wire the Create-your-own-Act wizard
   buildPolicyCards();
   buildBudgetRows();
   renderPreloaded();
@@ -1266,4 +2308,12 @@
   render();
   startTicker();
   openScenarioPicker(false);
+
+  /* ---- debug / test handle ---- */
+  window.POLISIM = {
+    E: E,
+    get state() { return st; },
+    set state(s) { st = s; },
+    render: render
+  };
 })();
