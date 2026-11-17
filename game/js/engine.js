@@ -18,6 +18,7 @@
   var SECTORS = root.NEW_SECTORS || [];
   var NETDEF = root.NETWORK_DEF || [];
   var SCENARIOS = root.SCENARIOS || null;
+  var REALWORLD_EVENTS = root.REALWORLD_EVENTS || null;
 
   /* ---- scenario helpers (v0.4) ---- */
   function scenarioOf(st) {
@@ -186,19 +187,37 @@
     var fx = { demand: 0, homelessPct: 0, odPct: 0, incarcPct: 0, det: {}, groupDrift: {} };
     DET_IDS.forEach(function (d) { fx.det[d] = 0; });
     GROUP_IDS.forEach(function (g) { fx.groupDrift[g] = 0; });
-    function acc(f, scale) {
+    function acc(f, scale, groupScale) {
       if (!f) return;
+      var gs = groupScale !== undefined ? groupScale : scale;
       fx.demand += (f.demand || 0) * scale;
       fx.homelessPct += (f.homelessPct || 0) * scale;
       fx.odPct += (f.odPct || 0) * scale;
       fx.incarcPct += (f.incarcPct || 0) * scale;
       if (f.det) DET_IDS.forEach(function (d) { fx.det[d] += (f.det[d] || 0) * scale; });
-      if (f.groups) GROUP_IDS.forEach(function (g) { fx.groupDrift[g] += (f.groups[g] || 0) * scale; });
+      if (f.groups) GROUP_IDS.forEach(function (g) { fx.groupDrift[g] += (f.groups[g] || 0) * gs; });
     }
+    var L = computeLinks(st);
     BUDGET.forEach(function (c) {
       if (c.locked) return;
-      var dev = (catMult(st, c) - 1) * 10; // units of +10%
-      if (dev !== 0) acc(c.fx, dev * subFxScale(st, c)); // child deletions weaken the parent fx
+      var m = catMult(st, c);
+      var dev = (m - 1) * 10; // units of +10%
+      if (dev < 0) {
+        // v0.5: a covering Act absorbs the cut's fx at R×eff (groups at half strength)
+        var keep = absorbKeep(st, c, L);
+        acc(c.fx, dev * keep.metric * subFxScale(st, c), dev * keep.group * subFxScale(st, c));
+      } else if (dev > 0) {
+        // v0.5 overlap: over-funding a redundant line double-pays — demand fx of the
+        // overlapping share is trimmed (deliberate political choice, mild waste signal)
+        var ll = lineLink(st, c.id, L);
+        var trim = (ll.R >= linkConsts().badgeFull && m > 1)
+          ? 1 - linkConsts().overlapDemandPenalty * ll.R : 1;
+        if (trim >= 1) acc(c.fx, dev * subFxScale(st, c));
+        else {
+          acc(c.fx, dev * subFxScale(st, c), dev * subFxScale(st, c));
+          fx.demand -= (c.fx.demand || 0) * dev * subFxScale(st, c) * (1 - trim);
+        }
+      }
       var own = subOwnFx(st, c); // child-only effects, additive on top
       if (own) acc(own, 1);
     });
@@ -274,7 +293,13 @@
     newMult = clamp(Math.round(Number(newMult) * 10) / 10, 0, 2);
     var old = st.budget.mult[catId] !== undefined ? st.budget.mult[catId] : 1;
     if (newMult === old) return { ok: false, msg: 'No change.' };
-    var cost = 2 * Math.round(Math.abs(newMult - old) * 10); // 2 PC per 10% change
+    var base = 2 * Math.round(Math.abs(newMult - old) * 10); // 2 PC per 10% change
+    var cost = base;
+    if (newMult < old) {
+      // v0.5: cutting a line covered by an Act is discounted (never below 1 PC)
+      var d = cutDiscount(st, catId, old - newMult);
+      cost = Math.max(1, Math.round(base * d.pc));
+    }
     if (st.pc < cost) return { ok: false, msg: 'Not enough Political Capital (need ' + cost + ', have ' + Math.floor(st.pc) + ').' };
     st.pc -= cost;
     st.budget.mult[catId] = newMult;
@@ -296,7 +321,10 @@
     if (!cat) return { ok: false, msg: 'Unknown budget category.' };
     if (cat.locked) return { ok: false, msg: 'Interest is automatic (debt-driven) and cannot be deleted.' };
     if (st.budget.deleted[catId]) return { ok: false, msg: cat.name + ' is already zeroed out.' };
-    var cost = 10;
+    var depth = st.budget.mult[catId] !== undefined ? st.budget.mult[catId] : 1;
+    var dCut = cutDiscount(st, catId, depth);
+    var cost = Math.max(1, Math.round(linkConsts().deletePcBase * dCut.pc));
+    var coveredBy = dCut.R > 0 ? ' — ' + Math.round(dCut.R * 100) + '% of its function is carried by an Act, so the cut is cheap' : '';
     if (st.pc < cost) return { ok: false, msg: 'Not enough Political Capital (need ' + cost + ', have ' + Math.floor(st.pc) + ').' };
     st.pc -= cost;
     st.budget.mult[catId] = 0;
@@ -305,10 +333,10 @@
     st.budget.subDeleted[catId] = {};
     if (cat.backlash) {
       var delta = {};
-      GROUP_IDS.forEach(function (g) { delta[g] = cat.backlash[g] || 0; });
+      GROUP_IDS.forEach(function (g) { delta[g] = (cat.backlash[g] || 0) * dCut.bl; });
       st.groupQueue.push({ delta: delta, remaining: 2, total: 2 });
     }
-    st.pendingLog.push('Budget: ' + cat.name + ' DELETED (−' + cost + ' PC) — affected constituencies are furious.');
+    st.pendingLog.push('Budget: ' + cat.name + ' DELETED (−' + cost + ' PC' + coveredBy + ').');
     return { ok: true, msg: cat.name + ' deleted (−' + cost + ' PC, backlash incoming)' };
   }
 
@@ -374,7 +402,11 @@
     if (!sd) return { ok: false, msg: 'Unknown sub-department.' };
     if (dels[subId]) return { ok: false, msg: sd.name + ' is already deleted.' };
     if (alive <= 1) return { ok: false, msg: 'Cannot delete the last sub-department of ' + cat.name + ' — delete the parent line instead.' };
-    var cost = 5;
+    var saved0 = st.budget.subs[catId] || {};
+    var subDepth = saved0[subId] !== undefined ? saved0[subId] : 1;
+    var dSub = cutDiscount(st, catId, subDepth, subId);
+    var cost = Math.max(1, Math.round(5 * dSub.pc));
+    var coveredNote = dSub.R > 0 ? ' (' + Math.round(dSub.R * 100) + '% covered by an Act)' : '';
     if (st.pc < cost) return { ok: false, msg: 'Not enough Political Capital (need ' + cost + ', have ' + Math.floor(st.pc) + ').' };
     st.pc -= cost;
     if (!st.budget.subDeleted[catId]) st.budget.subDeleted[catId] = {};
@@ -383,7 +415,7 @@
     st.budget.mult[catId] = parentMultFromSubs(st, cat);
     if (cat.backlash && sd.fxShare) {
       var delta = {};
-      GROUP_IDS.forEach(function (g) { delta[g] = (cat.backlash[g] || 0) * sd.fxShare; });
+      GROUP_IDS.forEach(function (g) { delta[g] = (cat.backlash[g] || 0) * sd.fxShare * dSub.bl; });
       st.groupQueue.push({ delta: delta, remaining: 2, total: 2 });
     }
     st.pendingLog.push('Budget: ' + cat.name + ' → ' + sd.name + ' ELIMINATED (−' + cost + ' PC) — ' + cat.name + ' runs at ' + Math.round(st.budget.mult[catId] * 100) + '% and its effects are weakened.');
@@ -398,6 +430,294 @@
     subs.forEach(function (sd) { if (!dels[sd.id]) s += sd.fxShare || 0; });
     return s;
   }
+  /* ============================================================================
+     v0.5 ACT ↔ BUDGET LINKS — when an Act absorbs a line's function
+     (spec: spec_act_budget_links.md). Redundant lines cut cheap; the Act carries
+     the burden; repeal/stall snaps the need back over `snapbackTurns` turns.
+     ==========================================================================*/
+  var ACT_BUDGET_LINKS = root.ACT_BUDGET_LINKS || null;
+  function linkConsts() {
+    var c = (ACT_BUDGET_LINKS && ACT_BUDGET_LINKS.constants) || {};
+    return {
+      deletePcBase: c.deletePcBase || 10,
+      deletePcDiscount: c.deletePcDiscount !== undefined ? c.deletePcDiscount : 0.8,
+      groupFxAbsorptionMult: c.groupFxAbsorptionMult !== undefined ? c.groupFxAbsorptionMult : 0.5,
+      snapbackTurns: c.snapbackTurns || 4,
+      badgeFull: c.badgeFull || 0.5,
+      badgePartial: c.badgePartial !== undefined ? c.badgePartial : 0.15,
+      consolidateFullR: c.consolidateFullR || 0.85,
+      overlapDemandPenalty: c.overlapDemandPenalty !== undefined ? c.overlapDemandPenalty : 0.5,
+      uncoveredBelow: c.uncoveredBelow !== undefined ? c.uncoveredBelow : 0.15
+    };
+  }
+  function linkActiveStrength(st, actId, link) {
+    var ps = st.pol[actId];
+    var def = POLICY_MAP[actId];
+    if (!ps || !def) return 0;
+    if (ps.stalled) return 0;                       // stalled acts carry nothing
+    if (link.option !== null && link.option !== undefined) {
+      if (ps.value !== link.option) return 0;
+    } else if (ps.value === def.def) return 0;      // null option = any non-default setting
+    if ((ps.ramp || 0) < (link.minRamp || 0.01)) return 0;
+    if (def.kind === 'slider' && link.minStrength !== undefined) {
+      if (!(Number(ps.value) >= link.minStrength)) return 0;
+    }
+    return (link.coeff || 0) * (ps.ramp !== undefined ? ps.ramp : 1);
+  }
+  /* per-target best links: pos[target] = {R, eff, mode, actId, actName, rationale}
+     neg[target] = {c, actName} for need-INCREASING acts (cuts cost MORE) */
+  function computeLinks(st) {
+    var pos = {}, neg = {};
+    if (!ACT_BUDGET_LINKS || !ACT_BUDGET_LINKS.acts) return { pos: pos, neg: neg };
+    Object.keys(ACT_BUDGET_LINKS.acts).forEach(function (actId) {
+      var entry = ACT_BUDGET_LINKS.acts[actId];
+      var def = POLICY_MAP[actId];
+      if (!def || !entry || !entry.links) return;
+      entry.links.forEach(function (link) {
+        var s = linkActiveStrength(st, actId, link);
+        if (s > 0) {
+          var rec = pos[link.target];
+          if (!rec || s > rec.R) pos[link.target] = { R: s, eff: link.eff || 0, mode: link.mode || 'substitute', actId: actId, actName: def.name, rationale: link.rationale || '' };
+        } else if (s < 0) {
+          var nr = neg[link.target];
+          if (!nr || s < nr.c) neg[link.target] = { c: s, actId: actId, actName: def.name, rationale: link.rationale || '' };
+        }
+      });
+    });
+    return { pos: pos, neg: neg };
+  }
+  function cushionMult(st, key) {
+    var sb = st.linkSnap && st.linkSnap[key];
+    if (!sb) return 1;
+    return clamp(sb.left / linkConsts().snapbackTurns, 0, 1);
+  }
+  /* parent R = fxShare-weighted mean of child Rs (children w/o links inherit the
+     parent link); returns {R, eff, rec} where rec is the dominant link record. */
+  function lineLink(st, catId, L) {
+    L = L || computeLinks(st);
+    var cat = BUDGET_MAP[catId];
+    var pr = L.pos[catId];
+    var subs = catSubs(cat);
+    if (!subs || !subs.length) return { R: pr ? pr.R : 0, eff: pr ? pr.eff : 0, rec: pr || null, neg: L.neg[catId] || null };
+    var num = 0, den = 0, best = null;
+    subs.forEach(function (sd) {
+      var cr = L.pos[catId + '/' + sd.id];
+      var r = cr ? cr.R : (pr ? pr.R : 0);
+      var w = sd.fxShare || 0;
+      num += w * r; den += w;
+      if (!best || r > best.R) best = cr || pr || null;
+    });
+    return { R: den ? num / den : (pr ? pr.R : 0), eff: best ? best.eff : 0, rec: best, neg: L.neg[catId] || null };
+  }
+  /* absorption: share of a CUT's fx that STILL bites (1 = full hit; 0.14 = mostly
+     carried by the covering Act). Group fx absorbed at half-strength (voters notice
+     a deleted line more than a missing decimal of GDP). */
+  function absorbKeep(st, cat, L) {
+    var catRec = L.pos[cat.id];
+    var subs = catSubs(cat);
+    var g = linkConsts().groupFxAbsorptionMult;
+    if (!subs || !subs.length) {
+      var R = catRec ? catRec.R : 0;
+      var eff = catRec ? catRec.eff : 0;
+      var cush = cushionMult(st, cat.id);
+      return { metric: 1 - R * eff * cush, group: 1 - R * eff * g * cush };
+    }
+    var mn = 0, gn = 0, den = 0;
+    subs.forEach(function (sd) {
+      var cr = L.pos[cat.id + '/' + sd.id];
+      var R = cr ? cr.R : (catRec ? catRec.R : 0);
+      var eff = cr ? cr.eff : (catRec ? catRec.eff : 0);
+      var cush = cushionMult(st, cat.id + '/' + sd.id);
+      var w = sd.fxShare || 0;
+      mn += w * R * eff * cush; gn += w * R * eff * g * cush; den += w;
+    });
+    var mScale = den ? mn / den : 0;
+    var gScale = den ? gn / den : 0;
+    return { metric: 1 - mScale, group: 1 - gScale };
+  }
+  /* PC/backlash discount for cutting `cutDepth` (mult units) off a line.
+     Stacking guard (military enable links): discount applies only within the
+     share the Act already reallocated. Negative links make cuts cost MORE. */
+  function cutDiscount(st, catId, cutDepth, subId, L) {
+    L = L || computeLinks(st);
+    var key = subId ? catId + '/' + subId : catId;
+    var rec = L.pos[key];
+    var catRec = L.pos[catId];
+    var R = rec ? rec.R : (catRec ? catRec.R : 0);
+    var K = linkConsts();
+    var pc = 1, bl = 1;
+    if (R > 0 && cutDepth > 0) {
+      // full-line deletion discounts the whole cut (spec §2.1); partial slider
+      // moves discount only within the share the Act already covers (stacking guard)
+      var covered = cutDepth >= 0.99 ? 1 : Math.min(cutDepth, R) / cutDepth;
+      pc = 1 - K.deletePcDiscount * R * covered;
+      bl = 1 - R * covered;
+    }
+    var neg = L.neg[key] || L.neg[catId];
+    if (neg) { pc *= 1 + Math.abs(neg.c); bl *= 1 + Math.abs(neg.c); }
+    return { pc: pc, bl: bl, R: R };
+  }
+  /* suggested multiplier for the "Consolidate into {Act}" button */
+  function consolidateTarget(st, catId) {
+    var ll = lineLink(st, catId);
+    var K = linkConsts();
+    if (ll.R < K.badgeFull) return null;
+    return ll.R >= K.consolidateFullR ? 0 : Math.max(0, Math.round((1 - ll.R) * 10) / 10);
+  }
+  /* snapback bookkeeping: called once per advanceTurn, after links are computed */
+  function tickLinkSnap(st, L) {
+    var K = linkConsts();
+    st.linkSnap = st.linkSnap || {};
+    // decay existing cushions
+    Object.keys(st.linkSnap).forEach(function (k) {
+      st.linkSnap[k].left -= 1;
+      if (st.linkSnap[k].left <= 0) delete st.linkSnap[k];
+    });
+    st.linkPrevR = st.linkPrevR || {};
+    var prev = st.linkPrevR;
+    var now = {};
+    BUDGET.forEach(function (c) {
+      if (c.locked) return;
+      var m = catMult(st, c);
+      var ll = lineLink(st, c.id, L);
+      now[c.id] = ll.R;
+      var cutLine = m < 0.99;
+      // per-child tracking
+      var subs = catSubs(c);
+      if (subs) {
+        var saved = st.budget.subs[c.id] || {};
+        var dels = st.budget.subDeleted[c.id] || {};
+        subs.forEach(function (sd) {
+          var sm = dels[sd.id] ? 0 : (saved[sd.id] !== undefined ? saved[sd.id] : 1);
+          var cr = L.pos[c.id + '/' + sd.id];
+          var childR = cr ? cr.R : ll.R;
+          now[c.id + '/' + sd.id] = childR;
+          var key = c.id + '/' + sd.id;
+          var cut = sm < 0.99;
+          var wasCov = (prev[key] !== undefined ? prev[key] : childR) >= K.uncoveredBelow;
+          if (cut && wasCov && childR < K.uncoveredBelow) st.linkSnap[key] = { left: K.snapbackTurns, actName: ll.rec ? ll.rec.actName : '' };
+          if (!cut || childR >= K.uncoveredBelow) delete st.linkSnap[key];
+        });
+      }
+      var wasCov = (prev[c.id] !== undefined ? prev[c.id] : ll.R) >= K.uncoveredBelow;
+      if (cutLine && wasCov && ll.R < K.uncoveredBelow) st.linkSnap[c.id] = { left: K.snapbackTurns, actName: ll.rec ? ll.rec.actName : '' };
+      if (!cutLine || ll.R >= K.uncoveredBelow) delete st.linkSnap[c.id];
+    });
+    st.linkPrevR = now;
+  }
+
+  /* ============================================================================
+     v0.5 REAL-WORLD EVENTS — statement popups tied to the scripted timeline.
+     Config: js/realworld_events.js (window.REALWORLD_EVENTS). Effects are
+     SIM-track only (statements never touch ACTUAL metrics or scripted polling)
+     and never touch demand/outlays/growth — voters only, per the taxonomy rule.
+     ========================================================================== */
+  function eventConsts() {
+    var m = (REALWORLD_EVENTS && REALWORLD_EVENTS.meta && REALWORLD_EVENTS.meta.mechanics) || {};
+    return {
+      maxPopupsPerTurn: m.maxPopupsPerTurn || 2,
+      groupSpreadTurns: m.groupSpreadTurns || 2,
+      stmtFxTurns: m.stmtFxTurns || 2
+    };
+  }
+  function findEventConfig(st, eventId) {
+    if (!REALWORLD_EVENTS || !st.scenario) return null;
+    var sc = REALWORLD_EVENTS.scenarios[st.scenario];
+    if (!sc || !sc.turns) return null;
+    var found = null;
+    Object.keys(sc.turns).forEach(function (k) {
+      (sc.turns[k] || []).forEach(function (ev) { if (ev.id === eventId) found = ev; });
+    });
+    return found;
+  }
+  function describeEventGroups(groups) {
+    var parts = [];
+    Object.keys(groups || {}).forEach(function (g) {
+      var name = (VG.labels && VG.labels[g]) || g;
+      var v = groups[g];
+      if (v) parts.push(name + ' ' + (v > 0 ? '+' : '') + v);
+    });
+    return parts.join(', ');
+  }
+  // shared effect applier for player responses AND no-comment expiry
+  function applyEventOutcome(st, cfg, outcome, optionId) {
+    var K = eventConsts();
+    var groups = outcome.groups || {};
+    if (Object.keys(groups).length) {
+      st.groupQueue.push({ delta: groups, remaining: K.groupSpreadTurns, total: K.groupSpreadTurns });
+    }
+    var sent = outcome.sentiment || 0, legit = outcome.legitimacy || 0;
+    if (sent || legit) st.stmtFx.push({ sent: sent, legit: legit, left: K.stmtFxTurns });
+    var parts = describeEventGroups(groups);
+    var line;
+    if (optionId === 'no_comment') line = 'No comment on ' + cfg.title + '. The silence is noted.';
+    else line = '📣 ' + cfg.title + ' — you chose "' + (outcome.label || optionId) + '".';
+    if (parts) line += ' (' + parts + ')';
+    if (sent) line += ' Sentiment ' + (sent > 0 ? '+' : '') + sent + ' for ' + K.stmtFxTurns + ' turns.';
+    if (legit) line += ' Legitimacy ' + (legit > 0 ? '+' : '') + legit + '.';
+    st.newsLog.push({ turn: st.turn, lane: 'event', text: line });
+    st.pendingLog.push('Statement: ' + cfg.title + ' → "' + (outcome.label || optionId) + '".' + (parts ? ' (' + parts + ')' : ''));
+    st.eventLog.push({
+      turn: st.turn, id: cfg.id, optionId: optionId,
+      label: outcome.label || optionId,
+      groups: groups, sentiment: sent, legitimacy: legit
+    });
+  }
+  function respondToEvent(st, eventId, optionId) {
+    if (!REALWORLD_EVENTS) return { ok: false, msg: 'Real-world events are not configured in this build.' };
+    var idx = -1, ev = null;
+    (st.pendingEvents || []).forEach(function (e, i) { if (e.id === eventId) { idx = i; ev = e; } });
+    if (!ev) return { ok: false, msg: 'No pending event "' + eventId + '".' };
+    var cfg = findEventConfig(st, ev.id);
+    if (!cfg) return { ok: false, msg: 'Event config for "' + ev.id + '" is missing.' };
+    var opt = null;
+    (cfg.options || []).forEach(function (o) { if (o.id === optionId) opt = o; });
+    if (!opt) return { ok: false, msg: 'Unknown option "' + optionId + '" for ' + cfg.title + '.' };
+    if (opt.pc && st.pc < opt.pc) return { ok: false, msg: 'Not enough Political Capital (need ' + opt.pc + ', have ' + Math.round(st.pc) + ').' };
+    if (opt.pc) st.pc -= opt.pc;
+    applyEventOutcome(st, cfg, opt, optionId);
+    st.pendingEvents.splice(idx, 1);
+    return { ok: true, msg: '📣 ' + cfg.title + ': "' + opt.label + '"' + (opt.pc ? ' (−' + opt.pc + ' PC)' : '') + '.' };
+  }
+  function expireEvents(st) {
+    if (!st.pendingEvents || !st.pendingEvents.length) return;
+    var expired = st.pendingEvents.slice();
+    st.pendingEvents = [];
+    expired.forEach(function (e) {
+      var cfg = findEventConfig(st, e.id);
+      if (!cfg) return;
+      applyEventOutcome(st, cfg, cfg.noComment || { groups: {} }, 'no_comment');
+    });
+  }
+  function collectRealworldEvents(st) {
+    if (!REALWORLD_EVENTS || st.over || !st.scenario) return;
+    var sc = REALWORLD_EVENTS.scenarios[st.scenario];
+    if (!sc) return;
+    var K = eventConsts();
+    var key = String(st.turn);
+    if (sc.turns && sc.turns[key]) {
+      // major events surface first when a turn carries two
+      var list = sc.turns[key].slice().sort(function (a, b) {
+        return (a.tier === 'major' ? 0 : 1) - (b.tier === 'major' ? 0 : 1);
+      }).slice(0, K.maxPopupsPerTurn);
+      list.forEach(function (ev) {
+        if (st.eventsSeen[ev.id]) return; // each event fires exactly once
+        st.eventsSeen[ev.id] = st.turn;
+        st.pendingEvents.push(Object.assign({}, ev));
+        st.newsLog.push({ turn: st.turn, lane: 'event', text: '📣 WORLD EVENT — your response is awaited: ' + ev.title });
+      });
+    }
+    // company / market texture: headline + one social post, no approval effects
+    if (sc.marketEvents && sc.marketEvents[key]) {
+      sc.marketEvents[key].forEach(function (m) {
+        st.newsLog.push({ turn: st.turn, lane: 'hist', text: '[BIZ] ' + m.headline + (m.marketNote ? ' — ' + m.marketNote : '') });
+        if (m.socialPosts && m.socialPosts.length) {
+          st.newsLog.push({ turn: st.turn, lane: 'social', text: m.socialPosts[st.turn % m.socialPosts.length] });
+        }
+      });
+    }
+  }
+
   /* child-only additive fx, per +10% deviation of the child from its own base */
   function subOwnFx(st, cat) {
     var out = { demand: 0, homelessPct: 0, odPct: 0, incarcPct: 0, det: {}, groups: {} };
@@ -456,7 +776,7 @@
       sentiment: s.sentiment, legitimacy: s.legitimacy,
       pc: s.pc, funds: s.funds,
       det: Object.assign({}, s.determinants),
-      approval: Object.assign({}, VG.initial),
+      approval: Object.assign({}, VG.initial, s.approval || {}),
       pol: pol,
       budget: { mult: mult, deleted: {}, subs: subs, subDeleted: subDeleted },
       sectors: [],
@@ -474,7 +794,13 @@
       snapshots: [],
       pollHistory: [{ turn: 0, pct: weightedApprovalFrom(VG.initial) }],
       pendingLog: [],
-      pendingNews: []
+      pendingNews: [],
+      linkSnap: {},     // v0.5: uncovering cushions (target key → {left turns})
+      linkPrevR: {},    // v0.5: last turn's per-line redundancy (snapback detector)
+      pendingEvents: [], // v0.5: real-world events awaiting a public statement
+      eventLog: [],      // v0.5: resolved statements (report tab + export)
+      eventsSeen: {},    // v0.5: event id → turn fired (fires exactly once)
+      stmtFx: []         // v0.5: decaying sentiment/legitimacy queue from statements
     };
     if (sc) {
       st.scenario = sc.id;
@@ -722,6 +1048,10 @@
   /* ---- main turn advance ---- */
   function advanceTurn(st) {
     if (st.over) return st;
+    // v0.5: the statement window is exactly the turn an event fired in —
+    // anything still pending when the player advances is auto-resolved as
+    // "no comment" BEFORE the turn rolls over
+    expireEvents(st);
     st.turn += 1;
     st.year = turnToYear(st, st.turn);
     st.quarter = turnToQuarter(st.turn);
@@ -742,6 +1072,8 @@
     if (st.dualTrack) {
       st.influence = Math.min(st.influenceCap, st.influence + st.influencePerTurn);
     }
+    // v0.5: act↔budget link snapback bookkeeping (cushion decay + uncover detection)
+    tickLinkSnap(st, computeLinks(st));
 
     // --- act upkeep: unpaid upkeep stalls the act (effects pause) ---
     POLICIES.forEach(function (def) {
@@ -881,6 +1213,16 @@
     det.output += 0.3 * (outTarget - det.output);
     det.fincenter += (st.debt_gdp > 110 ? -0.15 : 0.02);
     det.reserve_fx += (st.debt_gdp > 120 ? -0.1 : 0.005) + (st.inflation > 5 ? -0.05 : 0);
+    // v0.5 (WS6): per-turn scripted determinant shocks (EVENTS block detShock),
+    // used by the dbe2030 transition crisis — e.g. Q-Day dents reserve_fx
+    var dShock = (ev.detShock || {})[st.turn];
+    if (dShock) {
+      var dParts = [];
+      DET_IDS.forEach(function (d) {
+        if (dShock[d]) { det[d] += dShock[d]; dParts.push(d + ' ' + (dShock[d] > 0 ? '+' : '') + dShock[d]); }
+      });
+      if (dParts.length) items.push('⚡ Transition shock: ' + dParts.join(', ') + ' (determinant hit).');
+    }
     DET_IDS.forEach(function (d) { det[d] = clamp(det[d], 0, 100); });
 
     // --- voter group outcome drift ---
@@ -898,6 +1240,15 @@
     st._prevDebt = st.debt_gdp; st._prevS = pw.S;
 
     // --- sentiment & legitimacy ---
+    // v0.5: statement mood effects ride the fx.sentAdd/fx.legitAdd channel
+    // through a 2-turn decaying queue (sentiment is recomputed from fundamentals
+    // every turn, so statement bumps cannot be one-time writes)
+    var stmtSent = 0, stmtLegit = 0;
+    st.stmtFx = st.stmtFx.filter(function (e) {
+      stmtSent += e.sent || 0; stmtLegit += e.legit || 0;
+      e.left -= 1; return e.left > 0;
+    });
+    fx.sentAdd += stmtSent; fx.legitAdd += stmtLegit;
     var meanAppr = 0; GROUP_IDS.forEach(function (g) { meanAppr += ap[g]; }); meanAppr /= GROUP_IDS.length;
     var goodwill = clamp((meanAppr - 50) / 5, -6, 6);
     st.sentiment = clamp(
@@ -974,6 +1325,13 @@
         // it keeps organizing while the scripted administration continues
         st.legitimacy = clamp(st.legitimacy - 3, 0, 100);
         items.push('🗳️ PRESIDENTIAL ' + st.year + ' — your party polls ' + res.pct + '%; the scripted administration continues. The movement endures (legitimacy −3).');
+      } else if (scenarioOf(st) && scenarioOf(st).keepPlayingOnLoss) {
+        // v0.5 (WS6, dbe2030): the transition outlives any one administration —
+        // losing the White House is a heavy blow, not the end of the arc
+        st.legitimacy = clamp(st.legitimacy - 8, 0, 100);
+        st.party.president = false;
+        items.push('🗳️ ELECTION LOST — weighted approval ' + res.pct + '% < 50%. The White House changes hands, but the transition outlives any one administration. Your party regroups in opposition (legitimacy −8).');
+        st.newsLog.push({ turn: st.turn, lane: 'alert', text: 'Election lost (' + res.pct + '%) — you keep governing the transition from opposition. Win back the mandate in ' + (st.year + 4) + '.' });
       } else {
         st.over = true; st.won = false;
         st.overReason = 'Your party loses the White House — weighted approval ' + res.pct + '% < 50% in the ' + st.year + ' presidential election.';
@@ -1000,6 +1358,11 @@
     news = news.concat(histNews(st));
     news.forEach(function (n) { st.newsLog.push({ turn: st.turn, lane: n.lane, text: n.text }); });
     if (st.newsLog.length > 600) st.newsLog = st.newsLog.slice(st.newsLog.length - 600);
+
+    // v0.5: real-world events for this scripted turn fire AFTER the ACTUAL-track
+    // advance (so the 🏛️ act log line precedes the popup teaser) and only if
+    // the game is still running
+    if (!st.over) collectRealworldEvents(st);
 
     st.log.push({ turn: st.turn, label: 'Q' + st.quarter + ' ' + st.year, items: items });
     return st;
@@ -1167,6 +1530,12 @@
       st.budget.mult[catId] = 1;
       st.budget.subs[catId] = {};
     }
+    // v0.5: restoring re-covers any snapback gap (no backlash on restore by design)
+    if (st.linkSnap) {
+      delete st.linkSnap[catId];
+      var snapSubs = catSubs(cat);
+      if (snapSubs) snapSubs.forEach(function (sd) { delete st.linkSnap[catId + '/' + sd.id]; });
+    }
     st.pendingLog.push('Budget: ' + cat.name + ' lines restored (−' + cost + ' PC).');
     return { ok: true, msg: cat.name + ' restored (−' + cost + ' PC)' };
   }
@@ -1257,7 +1626,7 @@
 
   /* ---- exports / reporting ---- */
   function exportJSON(st) {
-    return JSON.stringify({ game: 'PoliSim-DBE v0.3', elections: st.elections, midterms: st.midterms, over: st.over, overReason: st.overReason, log: st.log, news: st.newsLog, snapshots: st.snapshots }, null, 1);
+    return JSON.stringify({ game: 'PoliSim-DBE v0.5', elections: st.elections, midterms: st.midterms, over: st.over, overReason: st.overReason, log: st.log, news: st.newsLog, events: st.eventLog || [], snapshots: st.snapshots }, null, 1);
   }
 
   function exportCSV(st) {
@@ -1270,6 +1639,55 @@
       }).join(','));
     });
     return lines.join('\n');
+  }
+
+  /* ---- v0.5 (WS5): custom Acts registered from the Act Studio ----
+     POLICIES === root.POLICY_DEFS (same array), so pushing here makes the Act
+     appear in createGame's pol-init, aggregateEffects and the UI rail at once. */
+  function validateCustomAct(def) {
+    if (!def || typeof def !== 'object') return { ok: false, msg: 'Act definition missing.' };
+    if (typeof def.id !== 'string' || !/^custom_[a-z0-9_]+$/.test(def.id)) return { ok: false, msg: 'Custom Act id must match custom_[a-z0-9_]+.' };
+    if (typeof def.name !== 'string' || !def.name.trim()) return { ok: false, msg: 'Custom Act needs a name.' };
+    if (def.kind !== 'select') return { ok: false, msg: 'Custom Acts must be kind "select".' };
+    var cats = root.ACT_CATEGORIES || [];
+    if (cats.length && !cats.some(function (c) { return c.id === def.cat; })) return { ok: false, msg: 'Unknown Act category "' + def.cat + '".' };
+    if (!Array.isArray(def.options) || def.options.length < 2) return { ok: false, msg: 'Custom Act needs at least two options.' };
+    var seen = {}, hasDef = false;
+    for (var i = 0; i < def.options.length; i++) {
+      var o = def.options[i];
+      if (!o || typeof o.id !== 'string' || typeof o.label !== 'string') return { ok: false, msg: 'Every option needs an id and a label.' };
+      if (seen[o.id]) return { ok: false, msg: 'Duplicate option id "' + o.id + '".' };
+      seen[o.id] = true;
+      if (o.id === def.def) hasDef = true;
+      if (!Number.isFinite(o.pc) || o.pc < 0) return { ok: false, msg: 'Option "' + o.id + '" needs a non-negative pc.' };
+      if (o.upkeep && (!Number.isFinite(o.upkeep.perTurn) || !Number.isFinite(o.upkeep.turns))) return { ok: false, msg: 'Option "' + o.id + '" upkeep malformed.' };
+      var det = (o.fx && o.fx.det) || {};
+      for (var d in det) {
+        if (DET_IDS.indexOf(d) < 0) return { ok: false, msg: 'Unknown determinant "' + d + '".' };
+        if (Math.abs(det[d]) > 1) return { ok: false, msg: 'Determinant effect ' + d + ' exceeds the ±1.0/turn cap.' };
+      }
+      var gr = o.groups || {};
+      for (var g in gr) {
+        if (GROUP_IDS.indexOf(g) < 0) return { ok: false, msg: 'Unknown voter group "' + g + '".' };
+        if (Math.abs(gr[g]) > 10) return { ok: false, msg: 'Group effect ' + g + ' exceeds the ±10 cap.' };
+      }
+    }
+    if (!hasDef) return { ok: false, msg: 'def.def must match an option id (e.g. "off").' };
+    return { ok: true, msg: 'ok' };
+  }
+  function registerCustomAct(def) {
+    var v = validateCustomAct(def);
+    if (!v.ok) return v;
+    if (POLICY_MAP[def.id]) return { ok: false, msg: 'An Act with id "' + def.id + '" already exists.' };
+    POLICIES.push(def);
+    POLICY_MAP[def.id] = def;
+    return { ok: true, msg: def.name + ' registered — it now appears in the Acts rail.' };
+  }
+  function unregisterCustomAct(id) {
+    if (typeof id !== 'string' || id.indexOf('custom_') !== 0 || !POLICY_MAP[id]) return { ok: false, msg: 'Not a registered custom Act.' };
+    for (var i = 0; i < POLICIES.length; i++) if (POLICIES[i].id === id) { POLICIES.splice(i, 1); break; }
+    delete POLICY_MAP[id];
+    return { ok: true, msg: 'Custom Act removed.' };
   }
 
   return {
@@ -1285,6 +1703,19 @@
     applyInfluence: applyInfluence,
     nudgeActual: nudgeActual,
     INFLUENCE: INFLUENCE,
+    computeLinks: computeLinks,
+    lineLink: lineLink,
+    cushionMult: cushionMult,
+    linkConsts: linkConsts,
+    consolidateTarget: consolidateTarget,
+    aggregateEffects: aggregateEffects,
+    registerCustomAct: registerCustomAct,
+    unregisterCustomAct: unregisterCustomAct,
+    catMult: catMult,
+    respondToEvent: respondToEvent,
+    expireEvents: expireEvents,
+    collectRealworldEvents: collectRealworldEvents,
+    findEventConfig: findEventConfig,
     addSector: addSector,
     advanceTurn: advanceTurn,
     weightedApproval: weightedApproval,
