@@ -475,6 +475,38 @@ window.GLOSSARY = {
       "This is the evidence layer for the next phase: strip-and-simulate. Because each Act is mapped to editable budget lines and determinant effects, the engine will be able to repeal a real Act mid-game and simulate what history says would have happened - the counterfactual, grounded in research."
     ]
   };
+  G.mech_links = {
+    title: "Act ↔ Budget Redundancy Links",
+    slides: [
+      "Real Acts absorb the spending they replace. Universal healthcare makes Medicare and Medicaid redundant (R≈0.95); UBI absorbs Social Security and most income-security programs (SNAP R=1.0); a housing-first strategy absorbs the housing slice of welfare.",
+      "Each link carries a coefficient (share of the line's function the Act now performs), an efficiency, an option gate (only the right policy variant links) and a ramp (effects build over ~8 quarters). A covered line's badge shows ◈ covered by <Act> (NN%). Cutting a covered line costs less political capital (down to 20% of base) and causes far less backlash - the need is already being met.",
+      "Balance runs both ways: repealing or stalling a covering Act re-opens the need with a 4-quarter snapback cushion (you have time to re-fund the budget line before backlash lands). Negative links exist too - legalizing drugs raises the cost of cutting health (new treatment load, coeff −0.10). The Consolidate button on a fully-covered line deletes it at minimum cost."
+    ]
+  };
+  G.mech_compass = {
+    title: "Political Compass — 8 Axes, 4 Labels",
+    slides: [
+      "A reverse-engineered political-compass engine scores your governing philosophy on 8 axes (0-100): statism, economic left, regulation, nationalization, high spending, authoritarian, traditionalist, nativist. The USA opens at its researched anchors (archetype 8: STA 45, LFT 38, REG 45, OWN 12, AUT 30, TRD 45, NTV 50, HSP 50).",
+      "Your Acts push the axes while in force (scaled by their ramp, unwound on repeal — the compass is memoryless even though the economy isn't). The budget moves axes modestly (±8 cap per axis) so gutting Medicaid registers without drowning policy. High Spending (HSP) is formula-only: federal outlays + a state/local constant, mapped 5%→0, 65%→100.",
+      "Gated classifiers then name your government on 4 dimensions — structure, governing, economic, social — the way the reference scoring engine does: first matching gate wins, no averaging. The same panel also runs Dalio's 18 Big-Cycle markers to stage the cycle (Rise/Top/Decline/New Order) with debt, internal-order and external-order gauges. SIM track only: the ACTUAL timeline has no policy levers."
+    ]
+  };
+  G.mech_market = {
+    title: "Wall Street Panel — Real Prices, Read-Only",
+    slides: [
+      "The market card shows real US companies with real quarter-end share prices pulled from Yahoo Finance historical data (last monthly close of each calendar quarter, split/dividend-adjusted). The GFC 2008 scenario tracks AIG, Goldman, Morgan Stanley, Citi, Ford, BP and friends through the crash; The Realignment tracks Meta, Tesla, NVIDIA, the megacaps and the S&P 500 from Q4 2016 onward.",
+      "Each row shows the price at the current simulation quarter, the change vs the previous quarter, a 12-quarter sparkline, and the latest real headline tied to that ticker from the world-event feed. Dead names stay honest: Silicon Valley Bank is marked DELISTED after Q2 2023, and Bear Stearns / Lehman appear as headline-only rows because their tickers stopped trading in 2008.",
+      "The market is READ-ONLY texture: your policies do not move these prices and the prices do not feed back into the simulated economy. Think of it as a GLO-BUS-style backdrop — the future direction is to let a real market react to your governance, the way industry panels react to your decisions in business simulations."
+    ]
+  };
+  G.mech_studio = {
+    title: "Act Studio — Create Your Own Act",
+    slides: [
+      "The Act Studio (Acts tab, 🛠️ button) turns source material into a new Act of Congress. Drop or paste a document and a keyword heuristic pre-fills the form — be clear about what that is: it counts words ('jobs', 'carbon', 'rent') against a small hand-written lexicon and guesses a category and affected levers. It is NOT an AI analysis and NOT an evidence estimate. You calibrate every number; six pre-analyzed template Acts show what a careful calibration looks like.",
+      "Every custom Act is priced by one balance formula: weight = |demand| + Σ|determinants|/2 + Σ|voter groups|/4 + |od|/2 + |homeless|/2 + |incarc|/2 + |outlay|×0.5, then PC = clamp(6 + 3×weight, 8–40), upkeep = PC/5 per turn for 4+weight turns, and the phase-in lag = 2 + weight/3 turns. Bigger promises cost more political capital and take longer to bite — the live readout shows the price as you move the sliders. Each Act ships with two options: Moderate (×0.6 of your settings) and Ambitious (×1.2, capped at ±1 determinant and ±10 group points).",
+      "Registered Acts live in the Acts rail exactly like the built-in ones — PC cost, upkeep, lag, ramp, repeal and voter-group effects all apply, and they persist in this browser via localStorage. Use Download/Load JSON on the Enact step to share an Act design with another player. Custom Acts can be deleted from their card (blocked while the Act is in force mid-game — repeal it first)."
+    ]
+  };
   G.budget_sub = {
     title: "Budget Sub-Department",
     slides: [
