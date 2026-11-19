@@ -224,3 +224,68 @@ details.evidence ul { list-style: disc; margin-left: 1rem; }
 .mkt-chip i { font-style: normal; font-weight: 600; }
 .mkt-chip i.mkt-up { color: #0f766e; }
 .mkt-chip i.mkt-dn { color: #dc2626; }
+
+/* ---- v0.6 (WS-B): player profiles & per-profile settings ---- */
+/* profile bar in the header (#profile-slot) */
+#profile-bar { display: inline-flex; align-items: center; gap: 0.35rem; margin-right: 0.35rem; }
+#profile-bar button { color: #d6d3d1; font-size: 0.7rem; padding: 0.2rem 0.5rem; border-radius: 0.4rem; border: 1px solid #57534e; line-height: 1.1; }
+#profile-bar button:hover { background: #44403c; color: #fff; }
+/* profile modal: settings rows + profile quick-pick chips */
+.profile-set-row { display: flex; align-items: center; justify-content: space-between; gap: 0.6rem; font-size: 0.74rem; color: #57534e; }
+.profile-set-row input[type="checkbox"] { accent-color: var(--teal); }
+.profile-chip { font-size: 0.66rem; font-weight: 600; padding: 0.15rem 0.55rem; border-radius: 9999px; border: 1px solid #d6d3d1; background: #f5f5f4; color: #44403c; }
+.profile-chip:hover { border-color: #0f766e; color: #0f766e; }
+.profile-chip.on { background: #f0fdfa; border-color: #0f766e; color: #0f766e; }
+/* complexity=casual: hide budget sub-department sliders + report export buttons */
+body.complexity-casual .bsubs { display: none; }
+body.complexity-casual #dl-csv, body.complexity-casual #dl-json { display: none; }
+/* worldChart=off: hide the World Big Cycle card on the Network tab */
+body.worldchart-off #world-card { display: none; }
+/* reduceMotion: stop the event pulse, the market marquee and the network flow */
+body.reduce-motion .ev-major { animation: none; }
+body.reduce-motion .mkt-strip-track { animation: none; }
+body.reduce-motion .net-edge { animation: none; }
+body.reduce-motion .gauge-fill, body.reduce-motion .voter-fill { transition: none; }
+
+
+/* ---- v0.6 (WS-D): Event Center — non-blocking pending-event queue ----
+   The panel overlays content visually but NEVER intercepts clicks outside its
+   own cards/chip: pointer-events:none on the wrapper, auto on interactive parts. */
+#event-queue-panel { position: fixed; right: 1rem; bottom: 4rem; z-index: 40; display: flex; flex-direction: column; align-items: flex-end; gap: 0.5rem; width: min(21rem, calc(100vw - 2rem)); pointer-events: none; }
+#event-queue-panel.hidden { display: none; }
+#ev-queue-cards { display: flex; flex-direction: column; gap: 0.5rem; width: 100%; }
+.evq-card { pointer-events: auto; background: #fff; border: 1px solid #d6d3d1; border-left: 4px solid #b45309; border-radius: 0.6rem; box-shadow: 0 8px 24px rgba(28,25,23,.18); padding: 0.5rem 0.65rem; width: 100%; }
+.evq-card.evq-major { border-left-color: #b91c1c; }
+.evq-card.evq-parked { opacity: 0.55; }
+.evq-head { display: flex; align-items: baseline; gap: 0.35rem; }
+.evq-tier { flex-shrink: 0; font-size: 0.72rem; }
+.evq-title { font-size: 0.76rem; font-weight: 700; color: #1c1917; line-height: 1.25; }
+.evq-hook { font-size: 0.66rem; color: #78716c; line-height: 1.35; margin-top: 0.15rem; }
+.evq-actions { display: flex; gap: 0.4rem; margin-top: 0.4rem; }
+.evq-actions button { font-size: 0.64rem; font-weight: 700; padding: 0.2rem 0.6rem; border-radius: 0.4rem; border: 1px solid; cursor: pointer; }
+.evq-respond { background: #7c3aed; border-color: #7c3aed; color: #fff; }
+.evq-respond:hover { background: #6d28d9; }
+.evq-respond:focus-visible, .evq-park:focus-visible, #ev-queue-chip:focus-visible { outline: 2px solid #7c3aed; outline-offset: 1px; }
+.evq-park { background: #fff; border-color: #d6d3d1; color: #57534e; }
+.evq-park:hover { border-color: #a8a29e; color: #1c1917; }
+/* slide-in only on freshly arrived cards (.evq-in is added by ui.js), so
+   re-renders from unrelated UI actions don't replay the animation */
+.evq-card.evq-in { animation: evq-in .3s ease-out; }
+.evq-card.evq-out { animation: evq-out .35s ease-in forwards; }
+@keyframes evq-in { from { transform: translateX(24px); opacity: 0; } to { transform: none; opacity: 1; } }
+@keyframes evq-out { to { transform: translateX(24px); opacity: 0; } }
+/* mobile: collapsed chip, tap to expand the stack */
+#ev-queue-chip { display: none; pointer-events: auto; background: #7c3aed; color: #fff; font-size: 0.72rem; font-weight: 700; padding: 0.35rem 0.8rem; border-radius: 9999px; box-shadow: 0 6px 18px rgba(28,25,23,.25); }
+#ev-queue-chip:hover { background: #6d28d9; }
+@media (max-width: 767px) {
+  #ev-queue-chip { display: inline-block; }
+  #ev-queue-cards { display: none; }
+  #event-queue-panel.evq-open #ev-queue-cards { display: flex; }
+}
+/* badge pulse (the badge itself is a sibling button of Next Quarter now) */
+#ev-pending-badge { animation: evbadge 1.6s ease-in-out infinite; }
+@keyframes evbadge { 0%,100% { box-shadow: 0 0 0 0 rgba(124,58,237,.5); } 50% { box-shadow: 0 0 0 4px rgba(124,58,237,0); } }
+/* reduceMotion (WS-B): no slide, no pulse */
+body.reduce-motion .evq-card.evq-in,
+body.reduce-motion .evq-card.evq-out,
+body.reduce-motion #ev-pending-badge { animation: none; }

@@ -1,3 +1,15 @@
+# PoliSim-DBE — v0.6
+
+**v0.6 adds:**
+- **Fully self-contained boot** — Tailwind is compiled to a static stylesheet and Chart.js is vendored locally; the game loads with zero external requests (fixes "fails to load" in browsers and accelerated mobile modes that block CDNs).
+- **Player profiles & settings** — a lightweight local login (header profile bar): create/switch profiles, per-player settings (UI complexity, default scenario, event frequency, world chart, reduced motion), and a seeded **admin** profile (password `XXX`) that unlocks every option with full settings on load. This is a convenience gate, not security — real accounts arrive with the multiplayer backend.
+- **Game modes** — after picking a scenario, choose **Govern** (single-track, the classic game) or **Challenge** (dual-track): lead the opposition against the incumbent's *actual* record, with an approval race, OVERTAKE moments, and elections decided against the incumbent benchmark. **Multiplayer** shows as a locked card until the backend lands. (Challenge is disabled for the 2030 projection scenario — no actual record to race.)
+- **Event Center** — real-world statement events no longer hijack the screen. New events slide into a compact bottom-right queue; a dashboard banner and a badge remind you; the full response modal opens only when you ask for it. The turn always advances, on every tab.
+- **Legacy Act repeal + devolution** — the eight Acts-in-Force (Social Security 1935 → Clean Air 1970) can now be permanently repealed: federal budget lines shrink by the researched amount, metrics move over a 4-quarter unwind, and states/cities pick up a share of the function (mitigated, never free). One-way, PC-priced, with honest savings estimates before you confirm.
+- **Act studio templates** — the studio's source step now offers all 16 built-in Acts as research-backed starting templates ("Start from an existing Act"), each carrying its Evidence blurb and honest notes about mechanics that don't carry over.
+
+*v0.5.1 notes follow.*
+
 # PoliSim-DBE — v0.5.1
 
 **v0.5.1 adds (user-feedback patch):**
