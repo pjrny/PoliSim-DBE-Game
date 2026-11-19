@@ -4,8 +4,23 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>PoliSim-DBE — Big Cycle Governance Simulator</title>
-<script src="https://cdn.tailwindcss.com"></script>
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<!-- v0.6: all libraries vendored locally — the game is fully self-contained and
+     works offline / on any browser, including accelerated mobile modes where CDNs
+     are blocked (that was the "fails to load everywhere" bug). -->
+<link rel="stylesheet" href="css/tailwind.css">
+<script src="js/vendor/chart.umd.min.js"></script>
+<script>
+  // Boot guard: if a core library failed to load, say so visibly instead of
+  // dying silently mid-render.
+  window.addEventListener('DOMContentLoaded', function () {
+    if (!window.Chart) {
+      var d = document.createElement('div');
+      d.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:9999;background:#b91c1c;color:#fff;padding:10px 14px;font:14px/1.4 system-ui';
+      d.textContent = '⚠ Chart library failed to load (js/vendor/chart.umd.min.js missing?). Charts are disabled but the game still runs.';
+      document.body.appendChild(d);
+    }
+  });
+</script>
 <link rel="stylesheet" href="css/style.css">
 </head>
 <body class="bg-stone-100 text-stone-800 min-h-screen flex flex-col">

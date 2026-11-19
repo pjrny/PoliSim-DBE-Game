@@ -4,6 +4,7 @@
 - **Freeze fix** — the event popup no longer hijacks the whole screen on side tabs. It auto-opens only on the Dashboard; on other tabs a pulsing badge inside Next Quarter reminds you, and the turn always advances (previously the badge swallowed the click and the game appeared frozen).
 - **Dual-axis world chart** — the six-nation dataset runs on the left axis and your simulation/actual lines on the right axis, so the known calibration gap between the two scales is visible instead of being silently merged.
 - **One cycle home** — the Big Cycle determinant gauges moved from the Dashboard into the Network & Compass tab, consolidating every cycle visualization in one place.
+- **Fully self-contained (load fix)** — Tailwind and Chart.js are vendored locally (`css/tailwind.css`, `js/vendor/chart.umd.min.js`); the game no longer depends on any CDN at boot, which fixes "fails to load" in browsers and accelerated mobile modes that block CDN traffic. Verified playable with 100% of external requests blocked. Boot guard shows a visible warning if a library is ever missing.
 
 *v0.5 notes follow.*
 
