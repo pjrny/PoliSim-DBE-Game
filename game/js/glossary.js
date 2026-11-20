@@ -475,6 +475,15 @@ window.GLOSSARY = {
       "This is the evidence layer for the next phase: strip-and-simulate. Because each Act is mapped to editable budget lines and determinant effects, the engine will be able to repeal a real Act mid-game and simulate what history says would have happened - the counterfactual, grounded in research."
     ]
   };
+  // WS-E: legacy Acts-in-Force removal + state/city devolution
+  G.mech_devolution = {
+    title: "Legacy Repeal & Devolution",
+    slides: [
+      "The eight Acts in Force (Social Security, UI, the GI Bill, the Interstate Highways, Civil Rights, Medicare & Medicaid, SNAP, the Clean Air Act) are woven into the baseline - while they stand, nothing changes. Each can now be PERMANENTLY repealed from its evidence panel: the mapped federal budget lines shrink by the researched share of their current size, the remaining removal effects (demand, health, homelessness, determinants, voter groups) unwind over 4 quarters, and earmarked revenue (payroll taxes, the gas tax) ends with its mandate - so Social Security's headline 'savings' mostly cancel against its lost payroll taxes.",
+      "Devolution is the core mechanic: when Washington exits a function, states and cities pick up a researched share of it (states already administer UI and SNAP, own the interstates, co-run Medicaid - those devolve well; national risk-pooling like pensions devolves badly). The realized service loss is the full removal delta multiplied by (1 - share x efficiency): 25% pickup at 60% efficiency means only 15% of the damage is offset. The devolved share is funded OUTSIDE the federal budget, so the federal line drops regardless - and lines that lost their mandate show a devolved badge.",
+      "Expect politics: repeal costs heavy Political Capital (the third rails cost 40), beneficiary groups backlash over the 4-quarter unwind, and a short disruption shock (demand + sentiment) decays over the first quarters. Repeal is one-way - there is no re-enact - and you cannot devolve a function a player-enacted Act is already carrying (repeal that Act first). Every removal lands in the Report tab's Structural Repeals ledger."
+    ]
+  };
   G.mech_links = {
     title: "Act ↔ Budget Redundancy Links",
     slides: [
@@ -505,6 +514,14 @@ window.GLOSSARY = {
       "The Act Studio (Acts tab, 🛠️ button) turns source material into a new Act of Congress. Drop or paste a document and a keyword heuristic pre-fills the form — be clear about what that is: it counts words ('jobs', 'carbon', 'rent') against a small hand-written lexicon and guesses a category and affected levers. It is NOT an AI analysis and NOT an evidence estimate. You calibrate every number; six pre-analyzed template Acts show what a careful calibration looks like.",
       "Every custom Act is priced by one balance formula: weight = |demand| + Σ|determinants|/2 + Σ|voter groups|/4 + |od|/2 + |homeless|/2 + |incarc|/2 + |outlay|×0.5, then PC = clamp(6 + 3×weight, 8–40), upkeep = PC/5 per turn for 4+weight turns, and the phase-in lag = 2 + weight/3 turns. Bigger promises cost more political capital and take longer to bite — the live readout shows the price as you move the sliders. Each Act ships with two options: Moderate (×0.6 of your settings) and Ambitious (×1.2, capped at ±1 determinant and ±10 group points).",
       "Registered Acts live in the Acts rail exactly like the built-in ones — PC cost, upkeep, lag, ramp, repeal and voter-group effects all apply, and they persist in this browser via localStorage. Use Download/Load JSON on the Enact step to share an Act design with another player. Custom Acts can be deleted from their card (blocked while the Act is in force mid-game — repeal it first)."
+    ]
+  };
+  G.mech_challenge = {
+    title: "Challenge Mode — the Opposition Race",
+    slides: [
+      "Challenge mode (picked after the scenario card) puts you in the opposition: instead of governing from turn one, you race the incumbent party's ACTUAL record. The incumbent track is derived once at game start by replaying the engine's own approval model over the real timeline - FRED/HUD/CDC actuals for the GFC scenario ('Bush→Obama record'), the scripted 2017-2030 track blended 50/50 with real polling for The Realignment ('Trump→Biden record').",
+      "Every quarter the dashboard race bar compares your weighted approval to the incumbent's derived approval: the gap in points, and an OVERTAKE moment each time you pass them. At a presidential election the 50% bar is replaced by the incumbent's record that turn - beat it and you take the White House (the game flips to Govern mode: now you own the record). Midterms are scored against incumbent −5 (the stylized midterm penalty).",
+      "Losing an election in challenge mode never ends the game - the point is the race, so you keep organizing as the opposition (legitimacy −3). The only way out is legitimacy collapse (≤15). Challenge is available where an actual record exists (GFC 2008, The Realignment); projection scenarios like Dimensions Beyond Energy have nothing to challenge."
     ]
   };
   G.budget_sub = {
