@@ -237,6 +237,150 @@
   });
 
   /* ============================================================================
+     BUILT-IN ACT TEMPLATES (WS-F) — each of the 16 POLICY_DEFS Acts is offered
+     in the studio's Source step as a research-backed starting point. The Act's
+     strongest convertible option ("Ambitious") is translated into the studio
+     lever model (demand / outlay / odPct / homelessPct / incarcPct / det{} /
+     groups{}) with the hard CAPS applied. Engine-only hooks (revAdd,
+     workersBonus, rentPressure, rentban, legitAdd, sentAdd, pcRegen, fundsMult,
+     slider mechanics) cannot be expressed as levers; templates that lose one
+     carry the "special mechanics … not carried over" note.
+     ========================================================================== */
+  var LEVER_FX_KEYS = ['demand', 'outlay', 'odPct', 'homelessPct', 'incarcPct'];
+
+  /* Slider Acts have no option list; these bases mirror the engine's own
+     slider math at the slider's maximum ("Ambitious") setting:
+       tax @100:     det.competitiveness +0.03×(100/25); group deltas at n=1
+                     (engine sliderGroupDelta). VAT revenue channel is special.
+       tariffs @25:  growth drag −0.08/pt (→ demand), trade −0.1/pt,
+                     competitiveness −0.05/pt (engine advanceTurn); group deltas
+                     at n=1. Laffer revenue channel is special.
+       infra @3%:    demand +0.25 per %GDP, outlay = %GDP, innovation +0.25
+                     (≥1.5% of GDP), output +0.1 per %GDP; group deltas at n=1.
+     Caps are applied afterwards by capTemplateBase().                          */
+  var SLIDER_TEMPLATE_BASES = {
+    tax:     { demand: 0,    outlay: 0,   det: { competitiveness: 0.12 }, groups: { workers: -8, seniors: -4, capitalists: 4, technocrats: 2 } },
+    tariffs: { demand: -2.0, outlay: 0,   det: { trade: -2.5, competitiveness: -1.25 }, groups: { workers: 6, capitalists: -6, technocrats: -4 } },
+    infra:   { demand: 0.75, outlay: 3.0, det: { innovation: 0.25, output: 0.3 }, groups: { workers: 5, technocrats: 3, capitalists: -2 } }
+  };
+
+  function leverWeight(fx) {
+    fx = fx || {};
+    var w = 0;
+    LEVER_FX_KEYS.forEach(function (k) { w += Math.abs(fx[k] || 0); });
+    Object.keys(fx.det || {}).forEach(function (d) { w += Math.abs(fx.det[d] || 0); });
+    return w;
+  }
+  function groupWeight(groups) {
+    var w = 0;
+    Object.keys(groups || {}).forEach(function (g) { w += Math.abs(groups[g] || 0); });
+    return w;
+  }
+  /* Pick the option whose effects convert best into studio levers: the one
+     with the largest convertible fx weight (the "Ambitious" option in every
+     built-in Act); if no option has convertible fx (e.g. church, democracy),
+     fall back to the option with the largest group effects. */
+  function pickSourceOption(def) {
+    var opts = def.options || [], best = null, bestW = -1, i, w;
+    for (i = 0; i < opts.length; i++) {
+      w = leverWeight(opts[i].fx);
+      if (w > bestW) { bestW = w; best = opts[i]; }
+    }
+    if (bestW > 0) return best;
+    best = null; bestW = -1;
+    for (i = 0; i < opts.length; i++) {
+      w = groupWeight(opts[i].groups);
+      if (w > bestW) { bestW = w; best = opts[i]; }
+    }
+    return best;
+  }
+  /* Engine-only effect channels a studio lever cannot express. */
+  function specialKeysOf(def, opt) {
+    if (def.kind === 'slider') return ['slider mechanics (revenue & drift channels)'];
+    var known = { demand: 1, outlay: 1, odPct: 1, homelessPct: 1, incarcPct: 1, det: 1 };
+    var extra = [], fx = (opt && opt.fx) || {};
+    Object.keys(fx).forEach(function (k) { if (!known[k]) extra.push(k); });
+    if (fx.outlay < 0) extra.push('negative outlay (savings)');
+    if (opt && opt.lag !== undefined && opt.lag !== def.lag) extra.push('option-specific lag');
+    return extra;
+  }
+  function baseFromOption(opt) {
+    var f = (opt && opt.fx) || {};
+    var base = { demand: 0, outlay: 0, odPct: 0, homelessPct: 0, incarcPct: 0, det: {}, groups: {} };
+    LEVER_FX_KEYS.forEach(function (k) { if (f[k]) base[k] = f[k]; });
+    Object.keys(f.det || {}).forEach(function (d) { if (DET_IDS.indexOf(d) >= 0 && f.det[d]) base.det[d] = f.det[d]; });
+    Object.keys((opt && opt.groups) || {}).forEach(function (g) {
+      if (GROUP_IDS.indexOf(g) >= 0 && opt.groups[g]) base.groups[g] = opt.groups[g];
+    });
+    return base;
+  }
+  function capTemplateBase(base) {
+    LEVER_FX_KEYS.forEach(function (k) { base[k] = Number(base[k]) || 0; });
+    base.demand = clamp(r2(base.demand), -CAPS.demand, CAPS.demand);
+    base.outlay = clamp(r2(base.outlay), 0, CAPS.outlay);
+    base.odPct = clamp(r2(base.odPct), -CAPS.pct, CAPS.pct);
+    base.homelessPct = clamp(r2(base.homelessPct), -CAPS.pct, CAPS.pct);
+    base.incarcPct = clamp(r2(base.incarcPct), -CAPS.pct, CAPS.pct);
+    Object.keys(base.det).forEach(function (d) {
+      base.det[d] = clamp(r2(base.det[d]), -CAPS.det, CAPS.det);
+      if (!base.det[d]) delete base.det[d];
+    });
+    Object.keys(base.groups).forEach(function (g) {
+      base.groups[g] = clamp(Math.round(base.groups[g]), -CAPS.group, CAPS.group);
+      if (!base.groups[g]) delete base.groups[g];
+    });
+    return base;
+  }
+  /* "Read the Evidence" blurb (~2–4 lines): the Act's evidence summary plus
+     the what-it-does text of the option the levers were taken from. Falls
+     back to the def's own desc/expected when acts_content.js is absent. */
+  function evidenceBlurb(def, opt) {
+    var c = root.ACT_CONTENT && root.ACT_CONTENT.policies && root.ACT_CONTENT.policies[def.id];
+    var optKey = opt ? opt.id : 'slider';
+    var oc = c && c.options && c.options[optKey];
+    var lines = [];
+    if (c && c.summary) lines.push(c.summary);
+    if (oc && oc.does) lines.push('What it does: ' + oc.does);
+    if (oc && oc.results) {
+      var sent = String(oc.results).match(/^.*?[.!?](?=\s|$)/); // first sentence only
+      lines.push('What the research says: ' + (sent ? sent[0] : oc.results));
+    }
+    if (!lines.length) {
+      if (def.desc) lines.push(def.desc);
+      if (def.expected) lines.push('What the research says: ' + def.expected);
+    }
+    return lines.slice(0, 3).join('\n');
+  }
+  function actTemplate(def) {
+    var opt = def.kind === 'slider' ? null : pickSourceOption(def);
+    var base = def.kind === 'slider'
+      ? JSON.parse(JSON.stringify(SLIDER_TEMPLATE_BASES[def.id] || {}))
+      : baseFromOption(opt);
+    base = capTemplateBase(base);
+    var special = specialKeysOf(def, opt);
+    var note = 'Template: ' + def.name + ' — based on the Act\'s researched Evidence panel; calibrate before enacting.';
+    if (special.length) note += ' Note: special mechanics of the original Act are not carried over (' + special.join(', ') + ').';
+    return {
+      actId: def.id,
+      name: def.name + ' (Custom)',
+      cat: def.cat,
+      desc: def.desc,
+      base: base,
+      sourceNote: note,
+      evidence: evidenceBlurb(def, opt),
+      sourceOption: opt ? opt.label : 'slider at maximum',
+      special: special
+    };
+  }
+  /* Built once, at load, before any custom Act can be registered into
+     POLICY_DEFS — so this is always exactly the 16 built-in Acts. */
+  var ACT_TEMPLATES = POLICIES.filter(function (d) { return !d.custom; }).map(actTemplate);
+  function actTemplateById(actId) {
+    for (var i = 0; i < ACT_TEMPLATES.length; i++) if (ACT_TEMPLATES[i].actId === actId) return ACT_TEMPLATES[i];
+    return null;
+  }
+
+  /* ============================================================================
      analyzeText — HONEST keyword heuristic. It counts terms against a small
      hand-authored lexicon and PRE-FILLS the studio form. It is not an analysis,
      not an estimate, and not AI: every number is a starting guess the player
@@ -360,6 +504,8 @@
 
   return {
     TEMPLATES: TEMPLATES,
+    ACT_TEMPLATES: ACT_TEMPLATES,
+    actTemplateById: actTemplateById,
     LEXICON: LEXICON,
     CAPS: CAPS,
     SCALE_MOD: SCALE_MOD,
