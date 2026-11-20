@@ -371,6 +371,89 @@ on page load, and can be shared as JSON (Download/Load on the Enact step).
 Deletion removes the def from `POLICY_DEFS`/`POLICY_MAP`/localStorage and is
 blocked while the Act is in force mid-game.
 
+### Game modes (WS-C): Govern vs Challenge (dual-track opposition race)
+`st.mode ∈ {'govern','challenge'}` (default `'govern'`; older saves imply it).
+Mode is picked on a second card step after the scenario card; Multiplayer is a
+disabled placeholder ("needs the backend, Phase 3"). Challenge is available only
+where an ACTUAL record exists — gfc2008 and realign2016; dbe2030 is a
+projection scenario, so its Challenge card is disabled.
+
+**Incumbent track** (`js/modes.js`, `MODES.computeIncumbent`, deterministic,
+computed once at game start into `st.incumbent.approvalByTurn`, index = turn):
+the engine's own per-turn voter-group drift rules (workers ← −Δunemployment,
+capitalists ← −Δdebt⁺, seniors ← −overdose% + 0.05, youth ← median-income
+growth, immigrants ← −homelessness%, technocrats ← power-proxy Δ, religious →
+52 mean reversion, all clamped as in `advanceTurn`) replayed over the ACTUAL
+metric timeline instead of the player's simulated one, then read out as the
+weighted approval each turn:
+- *gfc2008* — `data/history.json` annual actuals (FRED/HUD/CDC), linearly
+  interpolated to quarters (turn 4 = Q4 2008 = the 2008 annual value); turns
+  0–72. Label: "Bush→Obama record".
+- *realign2016* — the scripted ACTUAL/projection rows of `js/scenario_2016.js`
+  (quarterly, carry-forward; turns 0–56), **blended 50/50 with the scripted
+  polling** (`SCENARIO_2016.polling` — Gallup/generic-ballot of the party
+  holding the White House that quarter: R 2017–20, D 2021–24, R 2025+).
+  Rationale: the metric-only replay smooths over real scandals/rallies; raw
+  polling alone would not extend into the 2026+ projection. Label:
+  "Trump→Biden record".
+
+**Race mechanics**: each turn `MODES.updateRace` logs `{turn, you, incumbent,
+gap}` to `st.race.history`; a below→at-or-above cross records one overtake turn
+(toast + report entry; re-crossings re-fire, holding does not). **Elections**:
+presidentials replace the 50% bar with `appr ≥ incumbentAt(t)` — winning flips
+`st.mode` to `'govern'` ("now you own the record"); losing costs legitimacy −3
+and the race continues (no game-over; legitimacy collapse ≤15 remains the only
+loss condition). Midterms are scored against `incumbentAt(t) − midtermPenalty`
+(the stylized −5 congressional benchmark) and recorded on the midterm report as
+`challengeBar`/`challengeWon`.
+
+### Legacy repeal & devolution (WS-E)
+Full removal of the 8 preloaded Acts-in-Force (`js/devolution.js`,
+`window.DEVOLUTION.LEGACY_REPEALS`, keyed by the `ACT_TIMELINES` ids).
+**No double-counting:** these Acts' effects are baked into the baseline, so the
+registry describes only the *removal delta* — while an Act is in force it
+contributes exactly nothing (a no-repeal run is bit-for-bit identical to the
+pre-WS-E engine; test xxv-b).
+
+Repeal (`ENGINE.repealLegacyAct`, one-way — no re-enact) does five things:
+1. **Budget.** Each mapped line drops by `pct` of its *current* multiplier
+   (`mult → mult × (1−pct)`; children scale in lockstep, mirroring
+   `applyBudget`). The line's own fx coefficients then ripple the cut through
+   demand/groups — the existing budget-cut mechanics, reused. A line the
+   player already deleted yields zero savings (savings are computed from the
+   actual line size at repeal time) and scales the removal deltas to the
+   still-funded share (`scale = base-weighted min(1, mult)` across the lines).
+2. **Removal deltas** ramp in over `LEGACY_UNWIND = 4` turns (mirrors the
+   repeal-unwind path): `k = unwind/4` per turn. Channels: `demand`, `unemp`,
+   `inflation`, `odPct`, `homelessPct`, `incarcPct`, `medIncomePct` (rides the
+   `workersBonus` median-income channel), `det{}`, `groups{}`, plus fiscal
+   (`outlayPct`, `revenue` — earmarked payroll/gas taxes end with the mandate,
+   which is why Social Security's ~$558bn/yr headline savings come with
+   ~$618bn/yr of ended payroll revenue) and political (`sentAdd`, `legitAdd`).
+3. **Devolution mitigation.** States/cities pick up `share` of the removed
+   function at `efficiency < 1`, funded *outside* the federal budget. Service
+   metrics are mitigated exactly:
+
+   `applied_delta = delta × (1 − share × efficiency) × scale × k`
+
+   Fiscal/political channels and backlash are *not* mitigated (voters react to
+   the repeal itself, and the federal books are federal).
+4. **Backlash.** One-time group deltas spread over the 4-turn unwind via the
+   standard `groupQueue` (mirrors `repealAct`).
+5. **Disruption.** `{demand, sent, turns}` shock: each turn applies
+   `value × left/total` then decrements, so it decays linearly to 0 after
+   `turns` quarters.
+
+Per-act parameters are conservative derivations from each Act's
+`ACT_TIMELINES` evidence panel (documented inline in `devolution.js`); e.g.
+Social Security: line −90%, mitigation `1 − 0.25×0.60 = 0.85` (pensions pool
+risk nationally — states replace little), PC 40, backlash seniors −20.
+Blocked edge: a live player-enacted Act with a v0.5 redundancy link covering
+any mapped line (R ≥ `uncoveredBelow`) blocks the repeal until it is unwound.
+UI: confirm-step repeal buttons on the Acts-in-Force panels, ⛅ devolved
+badges on the affected budget lines, and a Structural Repeals section in the
+Report (`st.legacyRepealed` ledger).
+
 ### v0.5.1 presentation & UX notes (user-feedback patch)
 - **World chart, dual axes (user decision).** The game's determinants run hot
   (USA composite ≈ 77) vs the world dataset's cross-country normalization

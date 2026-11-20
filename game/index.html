@@ -43,7 +43,12 @@
       <span id="hd-scenario" class="badge bg-stone-600 hidden"></span>
     </div>
     <div class="ml-auto flex items-center gap-2">
-      <button id="btn-next" class="btn-primary">Next Quarter ▶<span id="ev-pending-badge" class="hidden ml-1.5 text-[10px] bg-violet-600 text-white rounded-full px-1.5 py-0.5 align-middle"></span></button>
+      <!-- v0.6 (WS-B): profile bar mount point — rendered by js/profiles.js -->
+      <span id="profile-slot"></span>
+      <!-- WS-D: the pending-event badge is its own button (not nested in Next Quarter),
+           so clicking it opens the Event Center and can never swallow a Next Quarter click -->
+      <button id="ev-pending-badge" type="button" class="hidden text-[10px] bg-violet-600 hover:bg-violet-700 text-white rounded-full px-2 py-1 align-middle font-bold"></button>
+      <button id="btn-next" class="btn-primary">Next Quarter ▶</button>
       <button id="btn-new" class="btn-ghost">New Game</button>
     </div>
   </div>
@@ -96,9 +101,20 @@
   <!-- scenario picker modal -->
   <div id="scenario-modal" class="hidden fixed inset-0 z-50 bg-stone-900/70 flex items-center justify-center p-4">
     <div class="bg-white rounded-xl shadow-2xl max-w-2xl w-full p-6">
-      <h2 class="text-xl font-bold mb-1">Choose your crisis</h2>
-      <p class="text-xs text-stone-500 mb-4">Each scenario opens at a different moment in the Big Cycle with its own starting balance of power.</p>
-      <div class="grid md:grid-cols-2 gap-3" id="scenario-cards"></div>
+      <!-- WS-C: step 1 = scenario, step 2 = game mode -->
+      <div id="scenario-step">
+        <h2 class="text-xl font-bold mb-1">Choose your crisis</h2>
+        <p class="text-xs text-stone-500 mb-4">Each scenario opens at a different moment in the Big Cycle with its own starting balance of power.</p>
+        <div class="grid md:grid-cols-2 gap-3" id="scenario-cards"></div>
+      </div>
+      <div id="mode-step" class="hidden">
+        <div class="flex items-center justify-between mb-1">
+          <h2 class="text-xl font-bold">Choose your mode</h2>
+          <button id="mode-back" class="btn-ghost border border-stone-300 !text-xs">← Scenarios</button>
+        </div>
+        <p class="text-xs text-stone-500 mb-4" id="mode-sub"></p>
+        <div class="grid md:grid-cols-3 gap-3" id="mode-cards"></div>
+      </div>
       <div class="flex justify-end mt-4">
         <button id="scenario-cancel" class="btn-ghost border border-stone-300 hidden">Cancel</button>
       </div>
@@ -125,6 +141,14 @@
     </div>
   </div>
 
+  <!-- ===================== EVENT CENTER QUEUE (WS-D) =====================
+       Compact fixed stack, bottom-right. pointer-events: none on the panel,
+       auto on the cards/chip — it can never swallow clicks outside itself. -->
+  <div id="event-queue-panel" class="hidden" role="region" aria-label="Pending world events">
+    <div id="ev-queue-cards"></div>
+    <button id="ev-queue-chip" type="button" aria-expanded="false" aria-controls="ev-queue-cards"></button>
+  </div>
+
   <!-- ===================== ACT STUDIO MODAL (v0.5, WS5) ===================== -->
   <div id="studio-modal" class="hidden fixed inset-0 z-50 bg-stone-900/70 flex items-center justify-center p-4">
     <div class="bg-white rounded-xl shadow-2xl max-w-3xl w-full p-6 max-h-[90vh] overflow-y-auto" role="dialog" aria-modal="true">
@@ -146,7 +170,21 @@
           <button id="studio-analyze" class="btn-ghost border border-stone-300 !text-xs">Analyze text → pre-fill the form</button>
         </div>
         <h3 class="card-title-sm mb-2">…or start from a pre-analyzed template</h3>
-        <div id="studio-templates" class="grid md:grid-cols-2 gap-2"></div>
+        <div id="studio-templates" class="grid md:grid-cols-2 gap-2 mb-3"></div>
+        <h3 class="card-title-sm mb-2">…or start from an existing Act</h3>
+        <div class="border border-stone-200 rounded-lg p-2.5 bg-stone-50">
+          <label class="text-[11px] font-semibold text-stone-500" for="studio-actpick">Start from an existing Act — the 16 researched built-ins, as calibratable templates</label>
+          <select id="studio-actpick" class="w-full text-xs border border-stone-300 rounded px-2 py-1.5 bg-white mt-1">
+            <option value="">— pick a built-in Act to use as your template… —</option>
+          </select>
+          <details id="studio-actev-wrap" class="hidden mt-1.5">
+            <summary class="text-[11px] font-semibold text-teal-700 cursor-pointer">📖 Read the Evidence</summary>
+            <p id="studio-actev" class="text-[11px] text-stone-500 leading-snug mt-1 whitespace-pre-line"></p>
+          </details>
+          <div class="flex justify-end mt-2">
+            <button id="studio-actuse" class="btn-ghost border border-teal-600 !text-teal-700 !text-xs hidden">Use this Act as my template →</button>
+          </div>
+        </div>
       </div>
 
       <!-- step 2: calibrate -->
@@ -195,7 +233,19 @@
 
   <!-- ===================== DASHBOARD ===================== -->
   <section id="tab-dashboard" class="tab-pane">
+    <!-- WS-D: one-line pending-event notice (dashboard only; the full modal never auto-opens) -->
+    <div id="ev-dash-banner" class="hidden mb-4 flex items-center gap-2 bg-violet-50 border border-violet-300 text-violet-900 rounded-lg px-3 py-2 text-xs">
+      <span id="ev-dash-banner-text" class="flex-1 leading-snug"></span>
+      <button id="ev-dash-respond" type="button" class="font-bold underline shrink-0 hover:text-violet-700">Respond now</button>
+      <button id="ev-dash-dismiss" type="button" aria-label="Dismiss event notice" class="shrink-0 text-violet-400 hover:text-violet-700 px-1">✕</button>
+    </div>
     <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-5" id="stat-cards"></div>
+
+    <!-- WS-C: opposition race bar (challenge mode only; hidden in govern) -->
+    <div class="card mb-5 hidden" id="race-card">
+      <h2 class="card-title">🏁 Opposition race <span class="tip-dot cursor-help" data-tip="mech_challenge"></span> <span id="race-gap" class="float-right text-sm font-normal"></span></h2>
+      <div id="race-body"></div>
+    </div>
 
     <div class="card mb-5">
       <h2 class="card-title">Key Metrics — Simulated vs Actual History</h2>
@@ -224,7 +274,7 @@
       <div class="card"><h3 class="card-title-sm">Unemployment (%)</h3><div class="chart-box"><canvas id="ch-unemp"></canvas></div></div>
       <div class="card"><h3 class="card-title-sm">Homelessness (thousands)</h3><div class="chart-box"><canvas id="ch-homeless"></canvas></div></div>
     </div>
-    <p class="text-[11px] text-stone-400 mt-2">Grey dashed = actual US history (annual at Q4 through 2025; in The Realignment, the scripted quarter-by-quarter track). Solid teal = your simulation. Endless mode: years roll on. Big-Cycle determinants & power score now live in <b>Network &amp; Compass</b>.</p>
+    <p class="text-[11px] text-stone-400 mt-2">Grey dashed = actual US history (annual at Q4 through 2025; in The Realignment, the scripted quarter-by-quarter track). Solid teal = your simulation. Endless mode: years roll on. Big-Cycle determinants &amp; power score now live in <b>Network &amp; Compass</b>.</p>
   </section>
 
   <!-- ===================== ACTS ===================== -->
@@ -243,8 +293,8 @@
       <div id="preloaded-acts" class="grid md:grid-cols-2 gap-3"></div>
     </div>
     <div class="card" id="timeline-card">
-      <h2 class="card-title"><span data-tip="mech_research">Acts in Force — what history measured</span> <span class="text-[11px] font-normal text-stone-400">(chronological effects, enactment → 2025; researched evidence for the coming strip-and-simulate repeal feature)</span></h2>
-      <p class="text-[11px] text-stone-400 mb-3">Eight heavy Acts researched from primary sources (SSA, CMS, USDA, EPA, DOL, OMB): what each did to the budget, the metrics and the determinants — and who screams if it is stripped away.</p>
+      <h2 class="card-title"><span data-tip="mech_research">Acts in Force — what history measured</span> <span class="text-[11px] font-normal text-stone-400">(chronological effects, enactment → 2025; each can now be permanently repealed — the function devolves to states &amp; cities <span class="tip-dot cursor-help" data-tip="mech_devolution"></span>)</span></h2>
+      <p class="text-[11px] text-stone-400 mb-3">Eight heavy Acts researched from primary sources (SSA, CMS, USDA, EPA, DOL, OMB): what each did to the budget, the metrics and the determinants — and who screams if it is stripped away. ✂ Repeal is <b>permanent</b>: the federal lines shrink, removal effects unwind over 4 quarters, and states/cities pick up part of the function.</p>
       <div id="act-timelines" class="space-y-2"></div>
     </div>
   </section>
@@ -330,7 +380,7 @@
     </div>
     <div class="card">
       <h2 class="card-title">Causal Network — determinants (inner ring) × metrics (outer ring)</h2>
-      <p class="text-[11px] text-stone-400 mb-2">Green = positive influence, red = negative; width & flow speed ∝ strength. Node size scales with live values — watch the debt bubble grow. <b>Hover an Act option or move a budget slider</b> to preview which edges it touches (▲/▼ = predicted direction).</p>
+      <p class="text-[11px] text-stone-400 mb-2">Green = positive influence, red = negative; width &amp; flow speed ∝ strength. Node size scales with live values — watch the debt bubble grow. <b>Hover an Act option or move a budget slider</b> to preview which edges it touches (▲/▼ = predicted direction).</p>
       <div class="overflow-x-auto"><svg id="network-svg" viewBox="0 0 860 640" class="w-full max-w-4xl mx-auto" style="min-width:560px"></svg></div>
       <div id="network-legend" class="flex flex-wrap gap-3 text-[11px] text-stone-500 mt-2"></div>
     </div>
@@ -370,6 +420,8 @@
 
   <!-- ===================== REPORT ===================== -->
   <section id="tab-report" class="tab-pane hidden">
+    <!-- v0.6 (WS-B): profile/pacing note, filled by ui.js renderReport() -->
+    <p id="report-profile-note" class="hidden text-[11px] text-stone-400 mb-2"></p>
     <div class="flex flex-wrap gap-2 mb-4">
       <button id="dl-csv" class="btn-primary">⬇ Download CSV (turn history)</button>
       <button id="dl-json" class="btn-primary">⬇ Download JSON (full log)</button>
@@ -385,8 +437,18 @@
         </table>
       </div>
     </div>
+    <!-- WS-C: Opposition Race section (challenge mode runs only) -->
+    <div class="card mb-5 hidden" id="race-report-card">
+      <h2 class="card-title">🏁 Opposition Race <span class="text-[10px] font-normal text-stone-400">— gap history, overtake turns, election outcomes</span></h2>
+      <div id="race-report"></div>
+    </div>
+    <!-- WS-E: Structural Repeals (legacy Acts-in-Force removal &amp; devolution) -->
+    <div class="card mb-5 hidden" id="repeals-card">
+      <h2 class="card-title">🏚️ Structural Repeals <span class="text-[10px] font-normal text-stone-400">— legacy Acts-in-Force removed; function devolved to states &amp; cities <span class="tip-dot cursor-help" data-tip="mech_devolution"></span></span></h2>
+      <div id="repeals-report" class="space-y-1.5"></div>
+    </div>
     <div class="card mb-5 hidden" id="stmt-card">
-      <h2 class="card-title">Public Statements <span class="text-[10px] font-normal text-stone-400">— your voice on real-world events (v0.5)</span></h2>
+      <h2 class="card-title">Public Statements <span class="text-[10px] font-normal text-stone-400">— your voice on real-world events; pending ones wait in the Event Center queue (bottom-right) until you respond or the quarter turns</span></h2>
       <div id="stmt-log" class="space-y-1.5 max-h-[16rem] overflow-y-auto pr-2"></div>
     </div>
     <div class="grid lg:grid-cols-2 gap-5">
@@ -395,7 +457,7 @@
         <div id="turn-log" class="space-y-3 max-h-[34rem] overflow-y-auto pr-2"></div>
       </div>
       <div class="card">
-        <h2 class="card-title">News & Social Log</h2>
+        <h2 class="card-title">News &amp; Social Log</h2>
         <div id="news-log" class="space-y-1.5 max-h-[34rem] overflow-y-auto pr-2"></div>
       </div>
     </div>
@@ -413,7 +475,7 @@
 <footer class="bg-stone-200 border-t border-stone-300">
   <div class="max-w-7xl mx-auto px-4 py-3 text-[11px] text-stone-500 leading-relaxed">
     <b>PoliSim-DBE v0.4</b> · Act categories · budget sub-departments · The Realignment (2016) dual-track scenario · Act-effect research layer · Educational simulation — stylized model, not a forecast.
-    Data: FRED via igo_open_data (pulled 2026-09-19; GDPC1, GDP, UNRATE, GFDEGDQ188S, PAYEMS, MEHOINUSA672N, CPIAUCSL, FGRECPT/FGEXPND Q4 SAAR NIPA), HUD AHAR, CDC/NCHS NVSS, BJS, CBO, PWBM — full list & formulas in
+    Data: FRED via igo_open_data (pulled 2026-09-19; GDPC1, GDP, UNRATE, GFDEGDQ188S, PAYEMS, MEHOINUSA672N, CPIAUCSL, FGRECPT/FGEXPND Q4 SAAR NIPA), HUD AHAR, CDC/NCHS NVSS, BJS, CBO, PWBM — full list &amp; formulas in
     <a href="MATH_AND_LOGIC.md" class="text-teal-700 underline">MATH_AND_LOGIC.md</a> ·
     <a href="https://github.com/pjrny/PoliSim-DBE-Game" class="text-teal-700 underline" target="_blank" rel="noopener">github.com/pjrny/PoliSim-DBE-Game</a>
   </div>
@@ -429,10 +491,14 @@
 <script src="js/scenario_2030.js"></script>
 <script src="js/market_data.js"></script>
 <script src="js/act_studio.js"></script>
+<script src="js/event_queue.js"></script>
 <script src="js/world_powers.js"></script>
+<script src="js/devolution.js"></script>
 <script src="js/engine.js"></script>
 <script src="js/compass_data.js"></script>
 <script src="js/compass.js"></script>
+<script src="js/profiles.js"></script>
+<script src="js/modes.js"></script>
 <script src="js/ui.js"></script>
 </body>
 </html>
