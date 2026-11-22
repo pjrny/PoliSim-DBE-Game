@@ -1,3 +1,14 @@
+# PoliSim-DBE — v0.7
+
+**v0.7 adds — the Nightly Simulation Lab:**
+- **Dark tactics** — two new real mechanics in the Party tab: 🌀 misinformation campaigns (targeted approval boosts with an exposure meter that builds toward a scandal — legitimacy and bloc damage plus a slow erosion of education) and 🤝 lobbying quid-pro-quo (industry offers of funds + political capital now, paid back through inflation/determinant drifts over 3–5 turns, with a corruption ledger that drags legitimacy if you stack deals).
+- **Persona player-agents** (`js/personas.js`) — five preset agents (🕊 Humanitarian, 🏛 Statesman, 🦅 Nationalist, 🐘 Machine, 🐍 Machiavelli) defined by three sliders: risk appetite, ethics (humanity→party/unethical), and win-focus. Each plays full games headlessly by scoring every feasible move against its own objective function. Deterministic seeds, fully reproducible.
+- **Nightly batch** (`run_nightly.js`) — 5 personas × 3 scenarios × 10 seeds = 150 full games in ~5 seconds. Schedule locally with `scripts/nightly.sh` (cron/launchd) or `scripts/nightly.bat` (Task Scheduler), or via a Kimi scheduled task.
+- **Morning report** (`reports/<date>/`) — self-contained HTML + markdown digest: per-persona run cards with full decision traces, end-state matrices vs baseline vs ACTUAL, dual-scale world charts (US S per ideology vs the six nations), cross-run analysis, and an append-only **calibration ledger** of sim-vs-evidence divergence flags that feeds engine tuning.
+- **Mobile UX overhaul (v0.6.1)** — zero horizontal overflow at 360–390px, compact header, stacked budget rows, fixed Acts-tab overlap; desktop untouched.
+
+*v0.6 notes follow.*
+
 # PoliSim-DBE — v0.6
 
 **v0.6 adds:**
