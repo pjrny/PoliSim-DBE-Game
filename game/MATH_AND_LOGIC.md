@@ -454,6 +454,68 @@ UI: confirm-step repeal buttons on the Acts-in-Force panels, ⛅ devolved
 badges on the affected budget lines, and a Structural Repeals section in the
 Report (`st.legacyRepealed` ledger).
 
+### Dark tactics (WS-N2)
+Two optional "dark" systems — **misinformation campaigns** and **lobbying
+quid-pro-quo** — usable by the player (Party tab) and by scripted agents via
+clean engine exports. The engine has no RNG, so all draws are deterministic:
+`detRand(str)` = FNV-1a hash of the string → xorshift mix → /2³², seeded by
+`scenarioId` (+ turn / scandal index). A run that never touches dark tactics
+is bit-for-bit identical to the pre-WS-N2 engine (test xxvi-a replays a
+captured 30-turn baseline to exact `===` equality).
+
+**Misinformation** (`ENGINE.runMisinfo(st, target)`, target = a voter group or
+`'national'`). Cost: **8 PC + $10M** funds.
+- Immediate effect: targeted group **+10** approval, or national blast **+6**
+  to every bloc; both scaled by `0.9^count` (diminishing) × `1.5` inside
+  campaign windows (same window rule as bloc courting). Plus **+2 sentiment
+  for 2 turns** via the `stmtFx` decay queue.
+- Exposure clock: each run adds **+1.0** (targeted) / **+0.75** (broad)
+  exposure; each turn `exposure += 0.1 × totalCampaigns − 0.5` (floor 0) — so
+  a light user (≤4 lifetime campaigns) cools off, a heavy one carries
+  permanently rising heat. The UI shows heat qualitatively
+  (low < 40%, medium < 75%, high ≥ 75% of the hidden threshold).
+- Scandal: when exposure ≥ threshold — `threshold = 12 + floor(detRand × 9)`
+  ∈ [12,20] per scenario (~12–20 campaigns if spammed) — the network is
+  exposed: **legitimacy −(10..15)**, **every bloc −(4..8)** (both
+  deterministic draws per scandal index), education **−1**, competitiveness
+  **−0.5**, sentiment −4 for 2 turns, and **+⌊corruption/2⌋** extra
+  legitimacy damage if the lobbying ledger is dirty. Exposure then drops by
+  one threshold's worth.
+- Misinformed-electorate tax: **education determinant −0.05 per campaign**,
+  cumulative — which bleeds into potential growth via
+  `gstar += 0.02 × (education − 60)`.
+
+**Lobbying** (offers from turn 2; 0–2 fresh per turn,
+`count = floor(detRand × 3)`, industry drawn without replacement from an
+8-entry authored table — fossil, pharma, finance, tech, ag, defense, media,
+health; offers expire after 3 turns and cannot duplicate a pending offer or
+active obligation).
+- Accept (`ENGINE.acceptLobby`): **+$15–30M funds + 10–15 PC now** (funds may
+  stack above the war-chest cap — regen simply pauses while above it; PC is
+  hard-capped because the PC cap floats with seats), a one-time bloc hit
+  (e.g. workers −2), **corruption +0.3**, and an **obligation** for
+  `turns = 3–5` quarters: per-turn inflation drift (+0.02..+0.05, added to the
+  inflation target) and determinant drift (e.g. fossil: trade −0.3/turn; some
+  deals carry small perks like defense → military +0.2/turn). Obligations tick
+  once per `advanceTurn` inside `darkTacticsFx` (exactly `turns` applications)
+  and log their fulfilment.
+- Corruption ledger (0–10): past **5**, **legitimacy −0.2/turn** (via
+  `legitAdd`) and **fincenter −0.05/turn** every turn; decays **0.1/turn only
+  while no obligation is active**; feeds misinformation-scandal severity
+  (above). Declining costs nothing and is recorded.
+- Plumbing note: the `output` and `fincenter` determinant lines now consume
+  `fx.det.*` (previously ignored — an additive `+ 0` in baseline), so both
+  lobbying drift and legacy-repeal det deltas land on all 8 determinants.
+
+**Balance intent:** campaigns are strictly stronger per dollar than honest
+bloc courting *short-run* (that's the temptation), but exposure accrual makes
+spam self-defeating (a 30-turn spam run ends ~1.5 legitimacy below the honest
+baseline plus eroded education — test xxvi-c), and lobbying is a loan against
+the future whose corruption drag outlasts the cash. UI: Party tab 🌀/🤝 cards
+(target selector, cost readout, exposure heat meter, offer cards with
+Accept/Decline, active-obligations list) and a Dark Tactics Ledger in the
+Report tab; glossary `mech_darktactics`.
+
 ### v0.5.1 presentation & UX notes (user-feedback patch)
 - **World chart, dual axes (user decision).** The game's determinants run hot
   (USA composite ≈ 77) vs the world dataset's cross-country normalization

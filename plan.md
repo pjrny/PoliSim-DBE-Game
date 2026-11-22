@@ -90,6 +90,17 @@ User drivers: still failing to load across browsers/accelerated mobile (root cau
 - **Deferred (user-approved scope):** 3D network view (later phase); drag-an-act-into-network visual preview (user said later); real PvP multiplayer (Phase 3 backend); full game-state save/resume (profiles store last scenario/turn note only).
 - **Push — pending this session's final step (single push incl. v0.5.2 vendored files).**
 
+## Phase 2.8 — v0.7 Nightly Simulation Lab ✅ DELIVERED 2026-11-23
+User brief: no winning — optimize the nation on chosen metrics; nightly persona runs across 3 scenarios; sliders for risk / ethics (humanity→unethical) / win-focus; morning reports vs baseline vs ACTUAL; divergence feeds calibration for forecasting & education.
+- **WS-N2 dark tactics — DONE.** Misinformation campaigns (exposure→deterministic scandal, education erosion) + lobbying quid-pro-quo (8-industry table, obligations, corruption drag). Engine exports for agents; UI + glossary + Report ledger; tests (xxvi); baseline bit-for-bit unchanged.
+- **WS-N1 personas — DONE.** js/personas.js: 5 presets = objective functions; move scoring over acts/budget/dark-tactics/events; deterministic detRand; 60-turn run 86ms; replayTrace legality checks; tests (xxvii).
+- **WS-N3+N4 batch+reports — DONE.** run_nightly.js (150 runs ~4s) → reports/<date>/{traces.json, report.html, summary.md} + reports/index.html + calibration-ledger.jsonl (idempotent). First findings: debt spiral to the 250% cap in realign/dbe across ALL personas (engine-level calibration signal); Healthcare-public S −9.1 evidence-check (RULE B); Machiavelli gfc2008: 15 campaigns, 2 scandals, overdoses +143k vs baseline. Tests (xxviii).
+- **WS-N5 scheduling — scripts DONE** (scripts/nightly.sh + nightly.bat); Kimi cron automation task = nightly run + report push via MCP + morning digest, pending user's pick of run time.
+Vision: no winning — optimize the nation on chosen metrics. Nightly autonomous persona runs across the 3 scenarios; morning reports compare runs vs baseline vs ACTUAL; divergence feeds a calibration ledger for forecasting/education.
+User decisions: schedule BOTH local script + Kimi cron; heuristic (deterministic, seeded) drivers; build REAL misinformation/lobbying mechanics now; reports committed to GitHub via MCP.
+Design: personas = objective functions over (metrics, determinants, approval/party, world S-rank). Three sliders: Risk (cautious↔experimental), Ethics (humanity↔country↔party↔unethical), Win-focus (steward↔dominance). Presets: 🕊 Humanitarian, 🏛 Statesman, 🦅 Nationalist, 🐘 Machine, 🐍 Machiavelli.
+Workstreams: WS-N2 misinformation+lobbying mechanics → WS-N1 persona/driver layer → WS-N3 headless batch runner → WS-N4 report generator (HTML+md, world chart, calibration ledger) → WS-N5 scheduling (OS script + Kimi cron, report push via MCP — no local git credentials, per security constraint).
+
 ## Phase 3 — Cloudflare backend (Workers + D1)  [was Phase 2]
 - Read cloudflare:cloudflare-mcp-usage skill; create D1 database (games, turns, policies, metrics_history tables)
 - Worker API: create game, submit turn, get state, leaderboards
