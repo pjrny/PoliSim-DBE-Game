@@ -1,0 +1,18 @@
+{
+ "date": "2026-11-23",
+ "seedsPerScenario": 10,
+ "runCount": 150,
+ "personas": [
+  "humanitarian",
+  "statesman",
+  "nationalist",
+  "machine",
+  "machiavelli"
+ ],
+ "scenarios": [
+  "gfc2008",
+  "realign2016",
+  "dbe2030"
+ ],
+ "flags": 160
+}

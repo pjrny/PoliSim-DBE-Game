@@ -1,0 +1,4 @@
+# Nightly Simulation Lab: the morning report is committed; raw traces stay local
+# (7MB+/night would bloat the repo). The calibration ledger IS committed —
+# it is the cross-night tuning signal.
+traces.json
