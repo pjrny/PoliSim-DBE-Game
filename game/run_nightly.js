@@ -9,6 +9,8 @@
    Writes under <outRoot>/<date>/:
      traces.json   full run payloads (compact JSON — the data of record)
      report.html   self-contained morning report (inline CSS/SVG, file://-safe)
+     report-committed.html  lean self-contained variant (matrices + narratives +
+                            findings + flags only, <50 KB) safe to commit to git
      summary.md    ≤2-page digest (matrices + findings + calibration flags)
      meta.json     tiny manifest used by the index
    Appends one JSONL line per calibration flag to <outRoot>/calibration-ledger.jsonl
@@ -539,6 +541,18 @@ footer{color:#a8a29e;font-size:.7rem;text-align:center;padding:1.5rem 1rem}
 `;
 
 /* ----------------------------- HTML assembly ----------------------------- */
+function honestyHTML(seedsPerScenario) {
+  return '<section class="card honest"><h2>Methodology & honesty box</h2>' +
+    '<ul class="narr">' +
+    '<li><b>Heuristic drivers, not RL.</b> Each persona is a fixed objective function (welfare / nation / party / world / dark weights) that scores the engine\u2019s own candidate moves each turn and takes the best one above threshold. Reasons quoted in the traces are the driver\u2019s own scoring notes.</li>' +
+    '<li><b>Mechanical preview channels only.</b> Move scoring uses the engine\u2019s documented preview functions (policy/budget channel deltas, group drifts). No hidden dynamics were probed; nothing here validates long-lag or stochastic effects beyond what the engine computes.</li>' +
+    '<li><b>Deterministic seeds.</b> Seeds s0…s' + (seedsPerScenario - 1) + ', engine FNV-1a/xorshift PRNG keyed by (seed, turn, move). Same (seeds, date) ⇒ byte-identical traces.json.</li>' +
+    '<li><b>Baselines & actuals.</b> “vs baseline” = the scenario\u2019s deterministic no-op driver (pass every turn). “vs ACTUAL” exists only where a scripted real-world track exists (realign2016 dual-track; gfc2008/dbe2030 show baseline deltas only).</li>' +
+    '<li><b>World chart is dual-scale.</b> Dataset nations are normalized cross-country composites (World Bank/IMF); the simulated USA rides the game\u2019s own S scale, ≈19 pts hotter. Both axes drawn — the gap is the point.</li>' +
+    '<li><b>Counterfactual, not forecast.</b> “This agent enacted that rule and this happened” is a statement about the model\u2019s mechanics, not about the real world.</li>' +
+    '</ul></section>\n';
+}
+
 function analysisHTML(an) {
   function tbl(rows, unit) {
     let h = '<tr><th>Tactic</th><th>Runs using</th><th>Mean ΔS vs non-users</th><th>Mean Δwelfare vs non-users</th></tr>';
@@ -557,7 +571,7 @@ function analysisHTML(an) {
   return h;
 }
 
-function flagsHTML(flags) {
+function flagsHTML(flags, maxShown) {
   const doc = '<p class="note"><b>Rules (V1):</b> ' +
     '<b>A</b> — |Δmetric| vs the scripted ACTUAL track beyond threshold (overdoses ±30%, homelessness ±40%, debt/GDP ±15pts, unemployment ±3pts, median income ±15%, real GDP ±15%) on a run whose persona never touched a lever for that metric — divergence the driver is not responsible for ⇒ scenario calibration suspect. ' +
     '<b>B</b> — a single Act moving |S| by &gt; 8 within an 8-turn window uncontaminated by other Acts ⇒ evidence-check candidate for that Act\u2019s channels. ' +
@@ -569,16 +583,19 @@ function flagsHTML(flags) {
   const tally = '<p><b>' + flags.length + ' flags:</b> ' + Object.keys(counts).sort().map(r => 'RULE ' + r + ' × ' + counts[r]).join(' · ') + '.</p>';
   // render every A/B/D flag; rule C is shown once per scenario×persona (the
   // numbers are seed-invariant there) with a pointer to the ledger for the rest
-  const shown = [], collapsed = [];
+  let shown = []; const collapsed = [];
   const seenC = {};
   flags.forEach(fl => {
     if (fl.rule !== 'C') { shown.push(fl); return; }
     const k = fl.scenario + '/' + fl.persona;
     if (seenC[k]) collapsed.push(fl); else { seenC[k] = 1; shown.push(fl); }
   });
+  let overflow = 0;
+  if (maxShown != null && shown.length > maxShown) { overflow = shown.length - maxShown; shown = shown.slice(0, maxShown); }
   return tally +
     shown.map(fl => '<div class="flag"><span class="rule">RULE ' + fl.rule + '</span> <code>' + esc(fl.scenario) + ' / ' + esc(fl.persona) + ' / ' + esc(fl.seed) + '</code> — ' + esc(fl.summary) + '</div>').join('') +
-    (collapsed.length ? '<p class="note">…plus ' + collapsed.length + ' further RULE C seed-level entries with identical per-persona numbers — all in <code>calibration-ledger.jsonl</code>.</p>' : '') + doc;
+    (collapsed.length ? '<p class="note">…plus ' + collapsed.length + ' further RULE C seed-level entries with identical per-persona numbers — all in <code>calibration-ledger.jsonl</code>.</p>' : '') +
+    (overflow ? '<p class="note">…plus ' + overflow + ' further flags omitted from this lean report — all in <code>calibration-ledger.jsonl</code> and <code>report.html</code>.</p>' : '') + doc;
 }
 
 function buildReportHTML(date, seedsPerScenario, runs, infos, flags, analysis, durationMs) {
@@ -609,19 +626,52 @@ function buildReportHTML(date, seedsPerScenario, runs, infos, flags, analysis, d
     '<header><div class="wrap"><div><h1>PoliSim-DBE — Nightly Persona Report</h1><div class="sub">Democracy-4-style governance × Dalio\u2019s Big Cycle · overnight headless batch</div></div>' +
     '<span class="badge teal">' + esc(date) + '</span><span class="badge">' + nRuns + ' runs</span><span class="badge">5 personas × 3 scenarios × ' + seedsPerScenario + ' seeds</span>' +
     '<span class="badge ' + (flags.length ? 'amber' : '') + '">' + flags.length + ' calibration flag' + (flags.length === 1 ? '' : 's') + '</span></div></header>\n<main>\n' +
-    '<section class="card honest"><h2>Methodology & honesty box</h2>' +
-    '<ul class="narr">' +
-    '<li><b>Heuristic drivers, not RL.</b> Each persona is a fixed objective function (welfare / nation / party / world / dark weights) that scores the engine\u2019s own candidate moves each turn and takes the best one above threshold. Reasons quoted in the traces are the driver\u2019s own scoring notes.</li>' +
-    '<li><b>Mechanical preview channels only.</b> Move scoring uses the engine\u2019s documented preview functions (policy/budget channel deltas, group drifts). No hidden dynamics were probed; nothing here validates long-lag or stochastic effects beyond what the engine computes.</li>' +
-    '<li><b>Deterministic seeds.</b> Seeds s0…s' + (seedsPerScenario - 1) + ', engine FNV-1a/xorshift PRNG keyed by (seed, turn, move). Same (seeds, date) ⇒ byte-identical traces.json.</li>' +
-    '<li><b>Baselines & actuals.</b> “vs baseline” = the scenario\u2019s deterministic no-op driver (pass every turn). “vs ACTUAL” exists only where a scripted real-world track exists (realign2016 dual-track; gfc2008/dbe2030 show baseline deltas only).</li>' +
-    '<li><b>World chart is dual-scale.</b> Dataset nations are normalized cross-country composites (World Bank/IMF); the simulated USA rides the game\u2019s own S scale, ≈19 pts hotter. Both axes drawn — the gap is the point.</li>' +
-    '<li><b>Counterfactual, not forecast.</b> “This agent enacted that rule and this happened” is a statement about the model\u2019s mechanics, not about the real world.</li>' +
-    '</ul></section>\n' +
+    honestyHTML(seedsPerScenario) +
     scenSections + '\n' +
     '<section class="card"><h2>What the night taught us</h2>' + analysisHTML(analysis) + '</section>\n' +
     '<section class="card"><h2>Calibration flags</h2><p class="note">Appended to <code>reports/calibration-ledger.jsonl</code> (one JSON line per flag).</p>' + flagsHTML(flags) + '</section>\n' +
     '</main>\n<footer>Generated by run_nightly.js (WS-N3/N4) · batch wall-clock ' + fmtInt(durationMs) + ' ms · full per-seed traces in traces.json · self-contained report, no external assets</footer>\n</body>\n</html>\n';
+}
+
+/* ---------------------- lean committed report (report-committed.html) ----------------------
+   Same stone palette, self-contained, but ONLY: header, honesty box, per-scenario
+   cross-persona end-state matrix + auto-generated narrative lines (representative
+   seed per persona), "What the night taught us", and calibration flags (capped —
+   the ledger is the complete record). No world charts, no run cards, no trace
+   tables: those stay in the local report.html + traces.json. Target: comfortably
+   under 50 KB even at 150 runs, small enough for the ~63 KB/file git push channel. */
+function buildLeanReportHTML(date, seedsPerScenario, runs, infos, flags, analysis) {
+  const scenSections = SCENARIO_IDS.map(sid => {
+    const info = infos[sid];
+    const pAggs = {};
+    PERSONAS.presets.forEach(pid => {
+      pAggs[pid] = personaAgg(runs.filter(r => r.scenarioId === sid && r.personaId === pid));
+    });
+    const hasActual = pAggs[PERSONAS.presets[0]].rep.actual != null;
+    const narrLines = PERSONAS.presets.map(pid => {
+      const P = PERSONAS.PRESETS[pid], rep = pAggs[pid].rep;
+      return narrative(rep).map(l => '<li>' + esc(l) + '</li>').join('');
+    }).join('');
+    return '<section class="card" id="' + sid + '">' +
+      '<h2>' + esc(sid) + ' — ' + esc(info.name) + '</h2>' +
+      '<p class="note">' + esc(info.tagline) + ' · start debt/GDP ' + round(info.start.debt_gdp, 1) + '%, overdoses ' + fmtInt(info.start.overdoses) + ', homelessness ' + fmtInt(info.start.homelessness) + 'k · ' +
+      seedsPerScenario + ' seeds × 5 personas · 60-turn horizon · narrative lines from each persona\u2019s representative (median-S) seed</p>' +
+      '<h3>Cross-persona end-state matrix</h3>' + matrixHTML(info, pAggs, hasActual) +
+      '<h3>Narratives — representative runs</h3><ul class="narr">' + narrLines + '</ul>' +
+      '</section>';
+  }).join('\n');
+
+  const nRuns = runs.length;
+  return '<!DOCTYPE html>\n<html lang="en">\n<head>\n<meta charset="UTF-8">\n<meta name="viewport" content="width=device-width, initial-scale=1.0">\n' +
+    '<title>PoliSim-DBE — Nightly Persona Report (lean) ' + esc(date) + '</title>\n<style>' + CSS + '</style>\n</head>\n<body>\n' +
+    '<header><div class="wrap"><div><h1>PoliSim-DBE — Nightly Persona Report (lean)</h1><div class="sub">Committed variant — matrices, narratives, findings & flags only · per-run traces stay local (report.html + traces.json)</div></div>' +
+    '<span class="badge teal">' + esc(date) + '</span><span class="badge">' + nRuns + ' runs</span><span class="badge">5 personas × 3 scenarios × ' + seedsPerScenario + ' seeds</span>' +
+    '<span class="badge ' + (flags.length ? 'amber' : '') + '">' + flags.length + ' calibration flag' + (flags.length === 1 ? '' : 's') + '</span></div></header>\n<main>\n' +
+    honestyHTML(seedsPerScenario) +
+    scenSections + '\n' +
+    '<section class="card"><h2>What the night taught us</h2>' + analysisHTML(analysis) + '</section>\n' +
+    '<section class="card"><h2>Calibration flags</h2><p class="note">Appended to <code>reports/calibration-ledger.jsonl</code> (one JSON line per flag) — the ledger is the complete record.</p>' + flagsHTML(flags, 15) + '</section>\n' +
+    '</main>\n<footer>Lean committed variant generated by run_nightly.js (WS-N3/N4) · full self-contained report with world charts and per-run traces: <code>report.html</code> · data of record: <code>traces.json</code> · no external assets</footer>\n</body>\n</html>\n';
 }
 
 /* ----------------------------- summary.md ----------------------------- */
@@ -685,9 +735,12 @@ function buildIndexHTML(outRoot) {
       flags = fs.readFileSync(path.join(outRoot, 'calibration-ledger.jsonl'), 'utf8').split('\n')
         .filter(l => l.trim() && JSON.parse(l).date === dt).length;
     } catch (e) { /* no ledger yet */ }
+    const hasLean = fs.existsSync(path.join(outRoot, dt, 'report-committed.html'));
     return '<tr><td><a href="' + dt + '/report.html"><b>' + dt + '</b></a></td><td>' +
       (meta ? meta.runCount + ' runs · ' + meta.seedsPerScenario + ' seeds/scenario' : '—') + '</td><td>' + flags + ' flag' + (flags === 1 ? '' : 's') + '</td>' +
-      '<td><a href="' + dt + '/summary.md">summary.md</a> · <a href="' + dt + '/traces.json">traces.json</a></td></tr>';
+      '<td><a href="' + dt + '/report.html">report.html</a> (full, local)' +
+      (hasLean ? ' · <a href="' + dt + '/report-committed.html">report-committed.html</a> (lean)' : '') +
+      ' · <a href="' + dt + '/summary.md">summary.md</a> · <a href="' + dt + '/traces.json">traces.json</a></td></tr>';
   }).join('\n');
   return '<!DOCTYPE html>\n<html lang="en">\n<head>\n<meta charset="UTF-8">\n<meta name="viewport" content="width=device-width, initial-scale=1.0">\n' +
     '<title>PoliSim-DBE — Nightly reports index</title>\n<style>' + CSS + '</style>\n</head>\n<body>\n' +
@@ -734,6 +787,7 @@ function main() {
 
   const durationMs = Date.now() - t0;
   fs.writeFileSync(path.join(outDir, 'report.html'), buildReportHTML(date, seeds, runs, infos, flags, analysis, durationMs));
+  fs.writeFileSync(path.join(outDir, 'report-committed.html'), buildLeanReportHTML(date, seeds, runs, infos, flags, analysis));
   fs.writeFileSync(path.join(outDir, 'summary.md'), buildSummaryMD(date, seeds, runs, infos, flags, analysis));
   fs.writeFileSync(path.join(outDir, 'meta.json'), JSON.stringify({
     date: date, seedsPerScenario: seeds, runCount: runs.length,
@@ -760,7 +814,7 @@ function main() {
   console.log('nightly ' + date + ': ' + runs.length + ' runs (' + seeds + ' seeds × 5 personas × 3 scenarios) in ' + durationMs + 'ms');
   console.log('  traces.json sha256[0:16] = ' + hash + ' · ' + Math.round(tracesJson.length / 1024) + ' KB');
   console.log('  calibration flags: ' + flags.length + (flags.length ? ' (' + flags.map(f => f.rule).join(',') + ')' : ''));
-  console.log('  wrote ' + path.relative(process.cwd(), outDir) + '/{traces.json,report.html,summary.md,meta.json} + index.html' + (flags.length ? ' + ledger' : ''));
+  console.log('  wrote ' + path.relative(process.cwd(), outDir) + '/{traces.json,report.html,report-committed.html,summary.md,meta.json} + index.html' + (flags.length ? ' + ledger' : ''));
 }
 
 if (require.main === module) main();
