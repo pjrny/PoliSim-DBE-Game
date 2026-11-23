@@ -27,12 +27,12 @@
 
 <!-- ===================== HEADER ===================== -->
 <header class="bg-stone-800 text-stone-100 shadow-md sticky top-0 z-40">
-  <div class="max-w-7xl mx-auto px-4 py-3 flex flex-wrap items-center gap-x-5 gap-y-2">
-    <div>
+  <div class="hd-wrap max-w-7xl mx-auto px-4 py-3 flex flex-wrap items-center gap-x-5 gap-y-2">
+    <div class="hd-titlewrap">
       <h1 class="text-lg font-bold tracking-tight">PoliSim-DBE</h1>
-      <p class="text-[11px] text-stone-400 -mt-0.5">Democracy-4-style governance × Dalio's Big Cycle</p>
+      <p class="hd-sub text-[11px] text-stone-400 -mt-0.5">Democracy-4-style governance × Dalio's Big Cycle</p>
     </div>
-    <div class="flex flex-wrap items-center gap-2 text-xs">
+    <div class="hd-badges flex flex-wrap items-center gap-2 text-xs">
       <span id="hd-clock" class="badge bg-stone-700">Q1 2008 · Turn 0</span>
       <span id="hd-phase" class="badge bg-amber-700 cursor-help" data-tip="phase">The Top</span>
       <span id="hd-legit" class="badge bg-stone-700 cursor-help" data-tip="legitimacy">Legitimacy 55</span>
@@ -42,7 +42,7 @@
       <span id="hd-influ" class="badge bg-indigo-700 cursor-help hidden" data-tip="influence">Influence 10</span>
       <span id="hd-scenario" class="badge bg-stone-600 hidden"></span>
     </div>
-    <div class="ml-auto flex items-center gap-2">
+    <div class="hd-actions ml-auto flex items-center gap-2">
       <!-- v0.6 (WS-B): profile bar mount point — rendered by js/profiles.js -->
       <span id="profile-slot"></span>
       <!-- WS-D: the pending-event badge is its own button (not nested in Next Quarter),
@@ -55,12 +55,12 @@
   <div id="event-banner" class="hidden bg-amber-100 text-amber-900 text-xs px-4 py-2 border-t border-amber-300"></div>
   <nav class="bg-stone-700">
     <div class="max-w-7xl mx-auto px-4 flex gap-1 text-sm" id="tabs">
-      <button data-tab="dashboard" class="tab-btn tab-active">Dashboard</button>
-      <button data-tab="acts" class="tab-btn">Acts</button>
-      <button data-tab="budget" class="tab-btn">Budget</button>
-      <button data-tab="network" class="tab-btn">Network &amp; Compass</button>
-      <button data-tab="party" class="tab-btn">Party</button>
-      <button data-tab="report" class="tab-btn">Report</button>
+      <button data-tab="dashboard" class="tab-btn tab-active"><span class="tab-full">Dashboard</span><span class="tab-short">Dash</span></button>
+      <button data-tab="acts" class="tab-btn"><span class="tab-full">Acts</span><span class="tab-short">Acts</span></button>
+      <button data-tab="budget" class="tab-btn"><span class="tab-full">Budget</span><span class="tab-short">Budget</span></button>
+      <button data-tab="network" class="tab-btn"><span class="tab-full">Network &amp; Compass</span><span class="tab-short">Network</span></button>
+      <button data-tab="party" class="tab-btn"><span class="tab-full">Party</span><span class="tab-short">Party</span></button>
+      <button data-tab="report" class="tab-btn"><span class="tab-full">Report</span><span class="tab-short">Report</span></button>
     </div>
   </nav>
 </header>
@@ -279,11 +279,11 @@
 
   <!-- ===================== ACTS ===================== -->
   <section id="tab-acts" class="tab-pane hidden">
-    <div class="flex items-center justify-between mb-3">
+    <div class="acts-head flex items-center justify-between mb-3">
       <p class="text-sm text-stone-600">Acts of Congress. Each is <b>heavy</b>: an upfront PC cost plus per-turn <b>upkeep</b> — if upkeep goes unpaid the Act <span class="text-amber-700 font-semibold">stalls</span> and its effects pause.</p>
       <span class="text-sm font-semibold text-teal-800" id="pol-pc"></span>
     </div>
-    <div class="flex items-center gap-2 mb-3">
+    <div class="acts-studio-row flex items-center gap-2 mb-3">
       <button id="btn-studio" class="btn-ghost border border-teal-600 !text-teal-700 font-semibold !text-xs">🛠️ Create your own Act</button>
       <span class="text-[11px] text-stone-400">Turn source material into a new Act of Congress — priced by the same PC / upkeep / lag balance formula. <span class="tip-dot cursor-help" data-tip="mech_studio"></span></span>
     </div>
@@ -309,7 +309,7 @@
         <div id="budget-rows" class="space-y-1.5"></div>
         <div class="mt-4 pt-3 border-t border-stone-200">
           <h3 class="card-title-sm">Add a new federal sector <span class="text-stone-400 font-normal">(one-time 8 PC)</span></h3>
-          <div class="flex gap-2 items-center">
+          <div class="sector-add-row flex gap-2 items-center">
             <select id="sector-select" class="text-xs border border-stone-300 rounded px-2 py-1.5 bg-stone-50 flex-1"></select>
             <button id="sector-add" class="btn-primary !text-xs">Add sector</button>
           </div>
@@ -414,6 +414,25 @@
           <p id="camp-status" class="text-xs text-stone-500 mb-3"></p>
           <div class="grid grid-cols-2 gap-2" id="campaign-actions"></div>
         </div>
+        <!-- WS-N2: dark tactics — misinformation campaigns + lobbying quid-pro-quo -->
+        <div class="card" id="misinfo-card">
+          <h3 class="card-title-sm"><span data-tip="mech_darktactics">🌀 Misinformation Campaign</span> <span id="misinfo-heat" class="float-right text-xs font-normal"></span></h3>
+          <p class="text-[11px] text-stone-400 mb-2">A coordinated fake-news blitz: instant approval and a mood bump — but every run builds <b>exposure</b>, erodes the education determinant (−0.05 each), and past a hidden threshold the network is exposed in a scandal (legitimacy and every bloc take the hit). Heat decays slowly if you lay off.</p>
+          <div class="flex flex-wrap items-center gap-2 mb-2">
+            <select id="misinfo-target" class="text-[12px] border border-stone-300 rounded px-1.5 py-1 bg-stone-50 flex-1"></select>
+            <button id="misinfo-run" class="btn-primary !text-xs !py-2 !bg-indigo-700 hover:!bg-indigo-800">Run campaign</button>
+          </div>
+          <p id="misinfo-cost" class="text-[11px] text-stone-500 mb-1"></p>
+          <div class="voter-track"><div id="misinfo-heat-fill" class="voter-fill"></div></div>
+          <p id="misinfo-heat-label" class="text-[10px] text-stone-400 mt-1"></p>
+          <div id="misinfo-history" class="mt-2 text-[11px] space-y-1"></div>
+        </div>
+        <div class="card" id="lobby-card">
+          <h3 class="card-title-sm"><span data-tip="mech_darktactics">🤝 Lobby Offers</span> <span id="lobby-corr" class="float-right text-xs font-normal"></span></h3>
+          <p class="text-[11px] text-stone-400 mb-2">Quid pro quo: cash and PC now, economic drift for the next few quarters. Each deal adds <b>+0.3 corruption</b> (hidden, /10) — past 5, legitimacy bleeds every turn and scandals hit harder. The ledger cools only while no obligations are active.</p>
+          <div id="lobby-offers" class="space-y-2"></div>
+          <div id="lobby-obligations" class="mt-2"></div>
+        </div>
       </div>
     </div>
   </section>
@@ -446,6 +465,11 @@
     <div class="card mb-5 hidden" id="repeals-card">
       <h2 class="card-title">🏚️ Structural Repeals <span class="text-[10px] font-normal text-stone-400">— legacy Acts-in-Force removed; function devolved to states &amp; cities <span class="tip-dot cursor-help" data-tip="mech_devolution"></span></span></h2>
       <div id="repeals-report" class="space-y-1.5"></div>
+    </div>
+    <!-- WS-N2: Dark tactics ledger (misinformation campaigns + lobbying record) -->
+    <div class="card mb-5 hidden" id="dark-card">
+      <h2 class="card-title">🌀 Dark Tactics Ledger <span class="text-[10px] font-normal text-stone-400">— misinformation campaigns, scandals &amp; the lobbying record <span class="tip-dot cursor-help" data-tip="mech_darktactics"></span></span></h2>
+      <div id="dark-report" class="space-y-1.5"></div>
     </div>
     <div class="card mb-5 hidden" id="stmt-card">
       <h2 class="card-title">Public Statements <span class="text-[10px] font-normal text-stone-400">— your voice on real-world events; pending ones wait in the Event Center queue (bottom-right) until you respond or the quarter turns</span></h2>

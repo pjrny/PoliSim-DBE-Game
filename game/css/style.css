@@ -289,3 +289,120 @@ body.reduce-motion .gauge-fill, body.reduce-motion .voter-fill { transition: non
 body.reduce-motion .evq-card.evq-in,
 body.reduce-motion .evq-card.evq-out,
 body.reduce-motion #ev-pending-badge { animation: none; }
+
+/* ---- WS-N2: dark tactics — lobby offer cards + obligations ----
+   Dismissible (Accept/Decline), non-modal, in the flow of the Party tab —
+   same spirit as the Event Center cards, but inline rather than floating. */
+.lobby-offer { background: #fff; border: 1px solid #d6d3d1; border-left: 4px solid #6d28d9; border-radius: 0.6rem; padding: 0.5rem 0.65rem; }
+.lobby-offer-head { display: flex; align-items: baseline; justify-content: space-between; gap: 0.5rem; font-size: 0.78rem; color: #1c1917; }
+.lobby-offer-exp { flex-shrink: 0; font-size: 0.62rem; color: #a8a29e; font-weight: 400; }
+.lobby-offer-terms { font-size: 0.68rem; color: #44403c; line-height: 1.4; margin-top: 0.2rem; }
+.lobby-offer-blurb { font-size: 0.64rem; color: #78716c; font-style: italic; line-height: 1.35; margin-top: 0.15rem; }
+.lobby-offer-actions { display: flex; gap: 0.4rem; margin-top: 0.4rem; }
+.lobby-offer-actions button { font-size: 0.64rem; font-weight: 700; padding: 0.2rem 0.6rem; border-radius: 0.4rem; border: 1px solid; cursor: pointer; }
+.lobby-accept { background: #6d28d9; border-color: #6d28d9; color: #fff; }
+.lobby-accept:hover:not(:disabled) { background: #5b21b6; }
+.lobby-accept:disabled { opacity: 0.5; cursor: default; }
+.lobby-decline { background: #fff; border-color: #d6d3d1; color: #57534e; }
+.lobby-decline:hover { border-color: #a8a29e; color: #1c1917; }
+.lobby-accept:focus-visible, .lobby-decline:focus-visible { outline: 2px solid #6d28d9; outline-offset: 1px; }
+.lobby-oblg { font-size: 0.68rem; color: #44403c; background: #fafaf9; border: 1px dashed #d6d3d1; border-radius: 0.4rem; padding: 0.25rem 0.5rem; margin-top: 0.25rem; }
+
+/* ===================== MOBILE (≤767px) =====================
+   v0.7: phone layout pass. Desktop is untouched — every rule below lives
+   inside the media query (tab short-labels default to hidden everywhere). */
+.tab-short { display: none; }
+
+@media (max-width: 767px) {
+  /* ---- global guards ---- */
+  main { padding-left: 0.75rem; padding-right: 0.75rem; }
+  .card { padding: 0.75rem 0.85rem; }
+  #toast { max-width: calc(100vw - 2rem); left: 1rem; right: 1rem; }
+
+  /* ---- header: subtitle off, small title, one scrollable badge row,
+         one compact action row (Switch/create lives in the profile modal) ---- */
+  .hd-wrap { padding: 0.45rem 0.75rem; column-gap: 0.5rem; row-gap: 0.35rem; }
+  .hd-sub { display: none; }
+  .hd-titlewrap h1 { font-size: 0.95rem; }
+  .hd-badges {
+    order: 3; flex: 1 1 100%; flex-wrap: nowrap; gap: 0.3rem;
+    overflow-x: auto; scrollbar-width: none; padding-bottom: 1px;
+    -webkit-overflow-scrolling: touch;
+  }
+  .hd-badges::-webkit-scrollbar { display: none; }
+  .hd-badges .badge { font-size: 0.6rem; padding: 0.12rem 0.42rem; flex: 0 0 auto; }
+  .hd-actions { order: 2; margin-left: auto; gap: 0.3rem; flex-wrap: wrap; justify-content: flex-end; }
+  .hd-actions > button, .hd-actions #profile-bar button, .hd-actions .badge {
+    min-height: 36px; display: inline-flex; align-items: center; justify-content: center;
+  }
+  .hd-actions button.hidden, .hd-actions .badge.hidden { display: none; }
+  .hd-actions .btn-primary { font-size: 0.78rem; padding: 0.35rem 0.7rem; }
+  .hd-actions .btn-ghost { font-size: 0.72rem; padding: 0.35rem 0.55rem; }
+  #btn-next { font-weight: 700; }
+  .hd-actions #profile-bar #profile-switch-btn { display: none; }   /* gear opens the same modal */
+  #profile-bar { margin-right: 0; gap: 0.2rem; }
+  #profile-bar .badge { font-size: 0.62rem; padding: 0.15rem 0.4rem; }
+  #profile-bar button { padding: 0.2rem 0.4rem; }
+  #ev-pending-badge { font-size: 0.6rem; }
+
+  /* ---- tab bar: single row, short labels, all 6 visible ---- */
+  #tabs { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; padding-left: 0.5rem; padding-right: 0.5rem; }
+  #tabs::-webkit-scrollbar { display: none; }
+  .tab-btn { padding: 0.5rem 0.45rem; font-size: 0.72rem; white-space: nowrap; flex: 1 0 auto; text-align: center; min-height: 38px; }
+  .tab-full { display: none; }
+  .tab-short { display: inline; }
+
+  /* ---- acts tab: PC block stacks under the description (no overlap) ---- */
+  .acts-head { flex-direction: column; align-items: flex-start; gap: 0.2rem; }
+  .acts-head #pol-pc { font-size: 0.78rem; }
+  .acts-studio-row { flex-direction: column; align-items: stretch; gap: 0.3rem; }
+  .acts-studio-row .btn-ghost { text-align: center; }
+
+  /* ---- budget rows: name+$bn+%GDP on line 1, slider+%+✕ on line 2 ---- */
+  .budget-row {
+    display: flex; flex-wrap: wrap; align-items: center;
+    column-gap: 0.45rem; row-gap: 0.25rem; font-size: 0.78rem;
+  }
+  .budget-row > * { order: 3; }
+  .budget-row .bname { order: 1; flex: 1 1 7rem; min-width: 0; }
+  .budget-row > [id^="bdevolved-"] { order: 2; }
+  .budget-row > [id^="bbn-"], .budget-row > [id^="bsubbn-"] { order: 2; margin-left: auto; }
+  .budget-row > [id^="bshare-"], .budget-row > [id^="bsubshare-"] { order: 2; min-width: 2.9rem; text-align: right; }
+  .budget-row > input[type="range"] { order: 3; flex: 1 1 55%; min-width: 7rem; width: auto; }
+  .budget-row > [id^="bval-"], .budget-row > [id^="bsubval-"] { order: 4; min-width: 2.6rem; text-align: center; }
+  .budget-row > .bdel { order: 5; min-width: 36px; min-height: 36px; font-size: 0.8rem; }
+  .budget-row > .brestore { order: 6; min-height: 32px; }
+  .blink { margin-left: 0; flex-wrap: wrap; }
+  .blink-badge { white-space: normal; }   /* was the overlapping/overflowing line */
+  .bcons { min-height: 32px; }
+  .bsubs { margin-left: 0.35rem; padding-left: 0.45rem; }
+  .bsubs .budget-row { font-size: 0.72rem; }
+  /* add-sector row: the select's longest <option> would force the card wide */
+  .sector-add-row { flex-wrap: wrap; }
+  #sector-select { min-width: 0; max-width: 100%; flex: 1 1 12rem; }
+
+  /* ---- market panel: drop the sparkline, headline wraps below ---- */
+  .mkt-row { grid-template-columns: minmax(0,1fr) auto auto; gap: 0.25rem 0.6rem; }
+  .mkt-row .mkt-name { min-width: 0; }
+  .mkt-row .mkt-spark { display: none; }
+  .mkt-row .mkt-head { grid-column: 1 / -1; font-size: 0.66rem; }
+
+  /* ---- gauges / bars: narrower label columns so the bars get room ---- */
+  .gauge-row { grid-template-columns: 7.4rem 1fr 2.4rem; gap: 0.45rem; }
+  .voter-row { grid-template-columns: 6rem 1fr 5.6rem; gap: 0.45rem; }
+  .seat-row { grid-template-columns: 5.6rem 1fr 4.6rem; gap: 0.45rem; }
+  .cmp-bar-row { grid-template-columns: 3rem 1fr 3rem; gap: 0.4rem; }
+
+  /* ---- charts & graphs shrink to the viewport ---- */
+  #network-svg { min-width: 0 !important; }
+  .chart-box { height: 190px; }
+  .chart-box-lg { height: 260px; }
+  .chart-box-radar { height: 240px; max-width: 100%; }
+
+  /* ---- modals & profile settings ---- */
+  .profile-set-row { flex-wrap: wrap; }
+  .profile-set-row > span { flex: 1 1 55%; min-width: 0; }
+  .profile-set-row select { max-width: 100%; }
+  #scenario-modal .p-6, #event-modal .p-6, #tip-modal .p-6, #studio-modal .p-6,
+  #profile-modal .p-6, #overlay .p-6 { padding: 1rem; }
+}
